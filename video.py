@@ -1,9 +1,61 @@
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import *
+from tkinter import Tk, filedialog
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt5.QtCore import Qt
+import sys
 
 
-clip = ( 
-    VideoFileClip("test.mp4")
-    .subclipped(10, 20)
-    .with_volume_scaled(0.8)
+def import_de_vidéos():
+    chemin_fichier = filedialog.askopenfilename()
+    return chemin_fichier
+imported_video = import_de_vidéos()
+
+clip = VideoFileClip(imported_video).subclipped(0,10)
+
+class fenetre_OuiNon(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Confirmation")
+        self.setFixedSize(300, 120)
+
+        label = QLabel("Voulez-vous continuer")
+        label.setAlignment(Qt.AlignCenter)
+
+        btn_oui = QPushButton("Oui")
+        btn_non = QPushButton("Non")
+
+        btn_oui.clicked.connect(self.accept)
+        btn_non.clicked.connect(self.reject)
+
+        hbox = QHBoxLayout()
+        hbox.addWidget(btn_oui)
+        hbox.addWidget(btn_non)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(label)
+        vbox.addLayout(hbox)
+
+        self.setLayout(vbox)
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = fenetre_OuiNon()
+    window.show()
+    sys.exit(app.exec_())
+
+
+
+
+
+txt_clip =  TextClip(
+    text = txt_content,font_size = 100, color = 'white', size=(clip.w, 200)
 )
 
+
+
+txt_clip = txt_clip.with_position("center").with_duration(10)
+
+video = CompositeVideoClip([clip, txt_clip])
+export_name = input("Comment veux tu appeler ta vidéo terminée ?") + ".mp4"
+video.write_videofile(export_name)
