@@ -1,6 +1,63 @@
-from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenuBar, QMainWindow
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
+
+"""fonctions"""
+def Nouveau_projet():
+    return
+
+def Ouvrir_projet():
+    return
+
+def Enregistrer_projet():
+    return
+
+def Enregistrer_sous():
+    return
+
+def importer_media():
+    return
+
+def exporter_media():
+    return
+
+def quitter():
+    return
+
+
+""" fenetres"""
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle('Creatakis')
+        self.setWindowIcon(QIcon('assets/logo.png'))
+        self.setBaseSize(1280,720)
+
+        menubar = QMenuBar(self)
+        menubar.setGeometry(0,0,1280,25)
+
+        Fichier = menubar.addMenu('Fichier')
+        Fichier.addAction('Nouveau', Nouveau_projet)
+        Fichier.addAction('Ouvrir', Ouvrir_projet)
+        Fichier.addAction('Enregistrer', Enregistrer_projet)
+        Fichier.addAction('Enregistrer sous', Enregistrer_sous)
+        Fichier.addAction('Importer média', importer_media)
+        Fichier.addAction('Exporter média', exporter_media)
+        Fichier.addAction('Quitter', quitter)
+
+        Edition = menubar.addMenu('Edition')
+        Edition.addAction('Annuler')
+        Edition.addAction('Rétablir')
+        Edition.addAction('Couper')
+        Edition.addAction('Supprimer')
+        Edition.addAction('Dupliquer')
+
+        Affichage = menubar.addMenu('Affichage')
+        Affichage.addAction('Plein Ecran')
+        Affichage.addAction('Aperçu vidéo')
+
+        
 
 class ask_txt(QDialog):
     def __init__(self):

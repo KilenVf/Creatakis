@@ -2,6 +2,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QDialog
 
 from Uis.ImportMedia import Import_windowMedia
+from Uis.MainWindow import MainWindow
 from Uis.MainWindow import ask_txt
 from Uis.MainWindow import txt_contentWindow
 from Uis.MainWindow import txt_videotitle
@@ -12,10 +13,18 @@ from Medias.editor import create_clip, export_video
 
 def main():
     app = QApplication(sys.argv)
+
+    main_window = MainWindow()
+    main_window.show()
+
+
     if Import_windowMedia().exec_() != QDialog.Accepted:
         sys.exit()
 
     video_path = import_video()
+
+    main_window = MainWindow()
+    main_window.show()
 
     text = ""
     if ask_txt().exec_() == QDialog.Accepted:
@@ -32,7 +41,7 @@ def main():
 
     export_video(video, export_name)
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec_()) 
 
 
 if __name__ == "__main__":
