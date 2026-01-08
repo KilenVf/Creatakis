@@ -1,4 +1,13 @@
-from libs import*
+from libs_var import*
+from main import*
+
+from moviepy import *
+from tkinter import Tk, filedialog
+from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
+import sys
+import numpy as np
 
 """ fenêtres """
 
@@ -107,59 +116,4 @@ class txt_videotitle(QDialog):
 
 """ fonctions """
 
-def import_de_videos():
-    root =Tk()
-    root.withdraw()
-    return filedialog.askopenfilename()
 
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    FirstWindow = FirstWindowImport()
-    if FirstWindow.exec_() == QDialog.Accepted:
-        imported_video = import_de_videos()
-    else :
-        sys.exit()
-
-    clip = VideoFileClip(imported_video).subclipped(0,5)
-
-    dialog = fenetre_OuiNon()
-    ask_txt =(dialog.exec_() == QDialog.Accepted)
-
-    txt_content = ""
-
-    if ask_txt:
-        dialog_text = txt_contentWindow()
-        if dialog_text.exec_() == QDialog.Accepted:
-            txt_content = dialog_text.text_value
-        else:
-            txt_content = ''
-
-    if txt_content:    
-        txt_clip =  TextClip(
-            text = txt_content,
-            font_size = 100,
-            color = 'white',
-            size=(clip.w, 200)
-        ).with_position("center").with_duration(5)
-
-        video = CompositeVideoClip([clip, txt_clip])
-    else:
-        video = clip
-    
-    title = txt_videotitle()
-    ask_title = (title.exec_()==QDialog.Accepted)
-
-    export_name = ""
-
-    if ask_title == True:
-        export_name = title.text_value
-    
-    codec = ".mp4"
-
-
-
-    
-    #export_name = input("Comment veux tu appeler ta vidéo terminée ?") + ".mp4"
-    video.write_videofile(export_name + codec)
