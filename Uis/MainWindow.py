@@ -52,6 +52,10 @@ class txt_contentWindow(QDialog):
         self.setLayout(layout)
         self.text_value =""
 
+    def valider(self):
+        self.text_value = self.line_edit.text()
+        self.accept()
+
 class txt_videotitle(QDialog):
     def __init__(self):
         super().__init__()
