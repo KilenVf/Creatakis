@@ -21,4 +21,5 @@ def create_clip(video_path, text=None):
 
 
 def export_video(video, name):
+    
     video.write_videofile(name + CODEC)

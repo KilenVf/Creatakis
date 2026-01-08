@@ -1,6 +1,9 @@
 from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenuBar, QMainWindow
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
+from utils.file_dialog import import_video
+import sys
+
 
 """fonctions"""
 def Nouveau_projet():
@@ -16,6 +19,7 @@ def Enregistrer_sous():
     return
 
 def importer_media():
+    media = import_video()
     return
 
 def exporter_media():
@@ -32,7 +36,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle('Creatakis')
         self.setWindowIcon(QIcon('assets/logo.png'))
-        self.setBaseSize(1280,720)
+        self.setMinimumSize(1280,720)
 
         menubar = QMenuBar(self)
         menubar.setGeometry(0,0,1280,25)
