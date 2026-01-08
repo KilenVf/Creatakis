@@ -6,4 +6,10 @@ from PyQt5.QtGui import QIcon
 import sys
 import numpy as np
 
-codec = ".mp4"
+
+
+
+
+txt_clip = ''
+imported_video = ''
+clip = ''

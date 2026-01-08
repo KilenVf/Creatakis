@@ -1,6 +1,10 @@
-from main import*
+
 from libs_var import*
-from video import*
+from Medias.video import*
+from Medias.functionsForMedias import*
+
+video = CompositeVideoClip([clip, txt_clip])
+clip = VideoFileClip(imported_video).subclipped(0,5)
 
 def cut():
     return

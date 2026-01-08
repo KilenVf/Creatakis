@@ -18,12 +18,10 @@ if __name__ == "__main__":
     else :
         sys.exit()
 
-    clip = VideoFileClip(imported_video).subclipped(0,5)
-
     dialog = fenetre_OuiNon()
     ask_txt =(dialog.exec_() == QDialog.Accepted)
 
-    txt_content = ""
+    
 
     if ask_txt:
         dialog_text = txt_contentWindow()
@@ -40,14 +38,13 @@ if __name__ == "__main__":
             size=(clip.w, 200)
         ).with_position("center").with_duration(5)
 
-        video = CompositeVideoClip([clip, txt_clip])
+        
     else:
         video = clip
     
     title = txt_videotitle()
     ask_title = (title.exec_()==QDialog.Accepted)
 
-    export_name = ""
 
     if ask_title == True:
         export_name = title.text_value
