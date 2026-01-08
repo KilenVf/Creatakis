@@ -12,7 +12,6 @@ from Medias.editor import create_clip, export_video
 
 def main():
     app = QApplication(sys.argv)
-
     if Import_windowMedia().exec_() != QDialog.Accepted:
         sys.exit()
 
