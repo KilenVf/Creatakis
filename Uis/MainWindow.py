@@ -2,6 +2,9 @@ from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButt
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 from utils.file_dialog import import_video
+from config import CODEC
+from moviepy import *
+from Medias.editor import create_clip
 import sys
 
 
@@ -17,13 +20,30 @@ def Enregistrer_projet():
 
 def Enregistrer_sous():
     return
+media = ''
+video = None
 
 def importer_media():
-    media = import_video()
+    global video
+    file_path = import_video()
+    if file_path:
+        video = create_clip(file_path)
+        print(f"Video imported: {file_path}")
     return
 
+def askMediaOutput():
+    dialog = txt_videotitle()
+    if dialog.exec_():
+        return dialog.text_value
+    return None
+
 def exporter_media():
-    return
+    if video is None:
+        print("No video loaded. Please import a video first.")
+        return
+    export_name = askMediaOutput()
+    if export_name:
+        return video.write_videofile(export_name + CODEC)
 
 def quitter():
     return
