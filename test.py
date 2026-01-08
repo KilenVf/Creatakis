@@ -38,7 +38,7 @@ class fenetre_OuiNon(QDialog):
         self.setWindowTitle("Confirmation")
         self.setFixedSize(300, 120)
 
-        label = QLabel("Voulez-vous continuer")
+        label = QLabel("Voulez-vous ajouter un texte ?")
         label.setAlignment(Qt.AlignCenter)
 
         btn_oui = QPushButton("Oui")
