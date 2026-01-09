@@ -25,9 +25,10 @@ def Enregistrer_sous():
     return
 media = ''
 video = None
+file_path = None
 
 def importer_media():
-    global video
+    global video, file_path
     file_path = import_video()
     if file_path:
         video = create_clip(file_path)
@@ -53,43 +54,52 @@ def quitter():
 
 
 """ fenetres"""
+        
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle('Creatakis')
-        self.setWindowIcon(QIcon('assets/logo.png'))
-        self.setMinimumSize(1280,720)
+        self.setWindowTitle("Creatakis")
+        self.setWindowIcon(QIcon("assets/logo.png"))
+        self.setMinimumSize(1280, 720)
 
-        menubar = QMenuBar(self)
-        menubar.setGeometry(0,0,1280,25)
+        # ===== MENU =====
+        menubar = self.menuBar()
 
-        Fichier = menubar.addMenu('Fichier')
-        Fichier.addAction('Nouveau', Nouveau_projet)
-        Fichier.addAction('Ouvrir', Ouvrir_projet)
-        Fichier.addAction('Enregistrer', Enregistrer_projet)
-        Fichier.addAction('Enregistrer sous', Enregistrer_sous)
-        Fichier.addAction('Importer média', importer_media)
-        Fichier.addAction('Exporter média', exporter_media)
-        Fichier.addAction('Quitter', quitter)
+        fichier = menubar.addMenu("Fichier")
+        fichier.addAction("Nouveau", Nouveau_projet)
+        fichier.addAction("Ouvrir", Ouvrir_projet)
+        fichier.addAction("Enregistrer", Enregistrer_projet)
+        fichier.addAction("Enregistrer sous", Enregistrer_sous)
+        fichier.addAction("Importer média", importer_media)
+        fichier.addAction("Exporter média", exporter_media)
+        fichier.addAction("Quitter", quitter)
 
-        Edition = menubar.addMenu('Edition')
-        Edition.addAction('Annuler')
-        Edition.addAction('Rétablir')
-        Edition.addAction('Couper')
-        Edition.addAction('Supprimer')
-        Edition.addAction('Dupliquer')
+        edition = menubar.addMenu("Edition")
+        edition.addAction("Annuler")
+        edition.addAction("Rétablir")
+        edition.addAction("Couper")
+        edition.addAction("Supprimer")
+        edition.addAction("Dupliquer")
 
-        Affichage = menubar.addMenu('Affichage')
-        Affichage.addAction('Plein Ecran')
-        Affichage.addAction('Aperçu vidéo')
+        affichage = menubar.addMenu("Affichage")
+        affichage.addAction("Plein écran", self.showFullScreen)
+        affichage.addAction("Quitter plein écran", self.showNormal)
 
+        # ===== CENTRAL WIDGET =====
+        central = QWidget()
+        self.setCentralWidget(central)
+
+        layout = QVBoxLayout(central)
+
+        # ===== VIDEO PLAYER =====
         self.player = QMediaPlayer(self)
         self.video_widget = QVideoWidget(self)
 
         self.player.setVideoOutput(self.video_widget)
-        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-        self.player.play()
+        layout.addWidget(self.video_widget)
+
 
         
 
