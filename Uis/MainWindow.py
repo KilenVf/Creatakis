@@ -5,6 +5,9 @@ from utils.file_dialog import import_video
 from config import CODEC
 from moviepy import *
 from Medias.editor import create_clip
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtCore import QUrl
 import sys
 
 
@@ -80,6 +83,13 @@ class MainWindow(QMainWindow):
         Affichage = menubar.addMenu('Affichage')
         Affichage.addAction('Plein Ecran')
         Affichage.addAction('Aperçu vidéo')
+
+        self.player = QMediaPlayer(self)
+        self.video_widget = QVideoWidget(self)
+
+        self.player.setVideoOutput(self.video_widget)
+        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+        self.player.play()
 
         
 
