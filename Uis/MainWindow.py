@@ -10,51 +10,11 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtCore import QUrl
 import sys
 
-
-"""fonctions"""
-def Nouveau_projet():
-    return
-
-def Ouvrir_projet():
-    return
-
-def Enregistrer_projet():
-    return
-
-def Enregistrer_sous():
-    return
 media = ''
 video = None
 file_path = None
 
-def importer_media():
-    global video, file_path
-    file_path = import_video()
-    if file_path:
-        video = create_clip(file_path)
-        print(f"Video imported: {file_path}")
-    return
-
-def askMediaOutput():
-    dialog = txt_videotitle()
-    if dialog.exec_():
-        return dialog.text_value
-    return None
-
-def exporter_media():
-    if video is None:
-        print("No video loaded. Please import a video first.")
-        return
-    export_name = askMediaOutput()
-    if export_name:
-        return video.write_videofile(export_name + CODEC)
-
-def quitter():
-    return
-
-
 """ fenetres"""
-        
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -68,13 +28,13 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
 
         fichier = menubar.addMenu("Fichier")
-        fichier.addAction("Nouveau", Nouveau_projet)
-        fichier.addAction("Ouvrir", Ouvrir_projet)
-        fichier.addAction("Enregistrer", Enregistrer_projet)
-        fichier.addAction("Enregistrer sous", Enregistrer_sous)
-        fichier.addAction("Importer média", importer_media)
-        fichier.addAction("Exporter média", exporter_media)
-        fichier.addAction("Quitter", quitter)
+        fichier.addAction("Nouveau" )
+        fichier.addAction("Ouvrir")
+        fichier.addAction("Enregistrer" )
+        fichier.addAction("Enregistrer sous" )
+        fichier.addAction("Importer média", self.importer_media)
+        fichier.addAction("Exporter média", self.exporter_media)
+        fichier.addAction("Quitter", self.quitter)
 
         edition = menubar.addMenu("Edition")
         edition.addAction("Annuler")
@@ -99,6 +59,36 @@ class MainWindow(QMainWindow):
 
         self.player.setVideoOutput(self.video_widget)
         layout.addWidget(self.video_widget)
+
+        # FONCTIONS
+
+    def importer_media(self):
+        global video, file_path
+        file_path = import_video()
+        if file_path:
+            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+            self.player.play()
+            video = create_clip(file_path)
+            print(f"Video imported: {file_path}")
+        return
+
+    def askMediaOutput(self):
+        dialog = txt_videotitle()
+        if dialog.exec_():
+            return dialog.text_value
+        return None
+
+    def exporter_media(self):
+        if video is None:
+            print("No video loaded. Please import a video first.")
+            return
+        export_name = self.askMediaOutput()
+        if export_name:
+            return video.write_videofile(export_name + CODEC)
+
+    def quitter(self):
+            return
+
 
 
         
