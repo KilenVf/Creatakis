@@ -5,8 +5,6 @@ from utils.file_dialog import import_video
 from config import CODEC
 from moviepy import *
 from Medias.editor import create_clip
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtCore import QUrl
 import sys
 
@@ -48,17 +46,14 @@ class MainWindow(QMainWindow):
         affichage.addAction("Quitter plein écran", self.showNormal)
 
         # ===== CENTRAL WIDGET =====
-        central = QWidget()
+        central = QWidget(self)
         self.setCentralWidget(central)
-
-        layout = QVBoxLayout(central)
+        vbox = QVBoxLayout(central)
 
         # ===== VIDEO PLAYER =====
-        self.player = QMediaPlayer(self)
-        self.video_widget = QVideoWidget(self)
+        
 
-        self.player.setVideoOutput(self.video_widget)
-        layout.addWidget(self.video_widget)
+        
 
         # FONCTIONS
 
@@ -66,8 +61,6 @@ class MainWindow(QMainWindow):
         global video, file_path
         file_path = import_video()
         if file_path:
-            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-            self.player.play()
             video = create_clip(file_path)
             print(f"Video imported: {file_path}")
         return
@@ -86,7 +79,7 @@ class MainWindow(QMainWindow):
         if export_name:
             return video.write_videofile(export_name + CODEC)
 
-    def quitter(self):
+    def quitter(self): 
             return
 
 
