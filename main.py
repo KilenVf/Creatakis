@@ -1,7 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QDialog
 from Uis.MainWindow import MainWindow
-from Uis.MainWindow import ask_txt
 from Uis.MainWindow import txt_contentWindow
 from Uis.MainWindow import txt_videotitle
 

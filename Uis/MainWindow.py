@@ -1,19 +1,33 @@
+# =========================
+# IMPORTS LIBS
+# =========================
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenuBar, QMainWindow, QSlider
 from PyQt5.QtCore import Qt, QUrl, QTimer
 from PyQt5.QtGui import QIcon, QImage, QPixmap
+import cv2
+import numpy as np
+
+
+# =========================
+# IMPORT VAR/FONCTIONS
+# =========================
 from utils.file_dialog import import_video
 from config import CODEC
-from moviepy import *
 from Medias.editor import create_clip
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtCore import QUrl
-from PyQt5.QtMultimediaWidgets import QVideoWidget
+
+
+# =========================
+#  DEF VARIABLES
+# =========================
 media = ''
 video = None
 file_path = None
 
-""" fenetres"""
 
+# =========================
+# MAIN WINDOW
+# =========================
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -49,36 +63,67 @@ class MainWindow(QMainWindow):
         central = QWidget(self)
         self.setCentralWidget(central)
 
-        # ===== VIDEO PLAYER =====
-        self.player = QMediaPlayer()
-        self.video_widget = QVideoWidget()
-        self.player.setVideoOutput(self.video_widget)
-        
+        # ===== VIDEO PLAYER STRUCTURE =====
+        self.video_back = QLabel()
+        self.video_back.setMinimumSize(800,600)
+        self.video_back.setStyleSheet('background-color: black;')
+        self.video_back.setAlignment(Qt.AlignCenter)
 
         self.btn_play = QPushButton('Play')
         self.btn_pause = QPushButton('Pause')
         self.btn_stop = QPushButton('Stop')
+        self.btn_add_text = QPushButton('Ajouter un texte')
+        self.btn_remove_text = QPushButton('Supprimer un texte')
 
-        self.btn_play.clicked.connect(self.player.play)
-        self.btn_pause.clicked.connect(self.player.pause)
-        self.btn_stop.clicked.connect(self.player.stop)
+        self.btn_play.clicked.connect(self.play)
+        self.btn_pause.clicked.connect(self.pause)
+        self.btn_stop.clicked.connect(self.stop)
+        self.btn_add_text.clicked.connect(self.add_text)
+        self.btn_remove_text.clicked.connect(self.remove_text)
+        
 
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0,100)
         self.volume_slider.setValue(50)
         self.volume_slider.valueChanged.connect(self.player.setVolume)
 
+        # === video position slider ===
+        self.position_slider = QSlider(Qt.Horizontal)
+        self.position_slider.setRange(0,100)
+        self.position_slider.sliderMoved.connect(self.seek_video)
+
+        
+        # ==== positioning ====
         VideoControl_layout = QHBoxLayout()
         VideoControl_layout.addWidget(self.btn_play)
         VideoControl_layout.addWidget(self.btn_pause)
         VideoControl_layout.addWidget(self.btn_stop)
+        VideoControl_layout.addWidget(self.btn_add_text)
+        VideoControl_layout.addWidget(self.btn_remove_text)
+        VideoControl_layout.addWidget(QLabel("Volume:"))
         VideoControl_layout.addWidget(self.volume_slider)
 
+
         VideoMain_layout = QVBoxLayout()
-        VideoMain_layout.addWidget(self.video_widget)
+        VideoMain_layout.addWidget(self.video_back)
+        VideoMain_layout.addWidget(self.position_slider)
         VideoMain_layout.addLayout(VideoControl_layout)
 
         central.setLayout(VideoMain_layout)
+
+        # ===== Opencv variables =====
+        self.cap = None
+        self.is_playing = False
+        self.text_to_display = None
+        self.text_color = (255,255,255)
+        self.txt_font = cv2.FONT_HERSHEY_COMPLEX
+        self.text_size = 1
+        self.text_thickness = 2
+
+        # === timer update vidéo ===
+        self.timer = QTimer
+        self.timer.timeout.connect(self.display_frame)
+
         
 
         # FONCTIONS
@@ -88,8 +133,13 @@ class MainWindow(QMainWindow):
         file_path = import_video()
         if file_path:
             video = create_clip(file_path)
-            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-            print(f"Video imported: {file_path}")
+
+            self.cap = cv2.VideoCapture(file_path)
+            self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+            self.total_frame = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.frame_interval = int(1000 / self.fps) if self.fps > 0 else 33
+    
+
         return
 
     def askMediaOutput(self):
@@ -110,34 +160,6 @@ class MainWindow(QMainWindow):
             return
 
 
-
-        
-
-class ask_txt(QDialog):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Confirmation")
-        self.setFixedSize(300, 120)
-
-        label = QLabel("Voulez-vous ajouter un texte ?")
-        label.setAlignment(Qt.AlignCenter)
-
-        btn_oui = QPushButton("Oui")
-        btn_non = QPushButton("Non")
-
-        btn_oui.clicked.connect(self.accept)
-        btn_non.clicked.connect(self.reject)
-
-        hbox = QHBoxLayout()
-        hbox.addWidget(btn_oui)
-        hbox.addWidget(btn_non)
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(label)
-        vbox.addLayout(hbox)
-
-        self.setLayout(vbox)
 
 class txt_contentWindow(QDialog):
     def __init__(self):
