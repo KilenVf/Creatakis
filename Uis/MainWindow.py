@@ -1,13 +1,13 @@
-from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenuBar, QMainWindow
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenuBar, QMainWindow, QSlider
+from PyQt5.QtCore import Qt, QUrl, QTimer
+from PyQt5.QtGui import QIcon, QImage, QPixmap
 from utils.file_dialog import import_video
 from config import CODEC
 from moviepy import *
 from Medias.editor import create_clip
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl
-import sys
-
+from PyQt5.QtMultimediaWidgets import QVideoWidget
 media = ''
 video = None
 file_path = None
@@ -51,8 +51,35 @@ class MainWindow(QMainWindow):
         vbox = QVBoxLayout(central)
 
         # ===== VIDEO PLAYER =====
-        
+        self.player = QMediaPlayer()
+        self.video_widget = QVideoWidget()
+        self.player.setVideoOutput(self.video_widget)
+        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
 
+        self.btn_play = QPushButton('Play')
+        self.btn_pause = QPushButton('Pause')
+        self.btn_stop = QPushButton('Stop')
+
+        self.btn_play.clicked.connect(self.player.play)
+        self.btn_pause.clicked.connect(self.player.pause)
+        self.btn_stop.clicked.connect(self.player.stop)
+
+        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider.setRange(0,100)
+        self.volume_slider.setValue(50)
+        self.volume_slider.valueChanged.connect(self.player.setVolume)
+
+        VideoControl_layout = QHBoxLayout()
+        VideoControl_layout.addWidget(self.btn_play)
+        VideoControl_layout.addWidget(self.btn_pause)
+        VideoControl_layout.addWidget(self.btn_stop)
+        VideoControl_layout.addWidget(self.volume_slider)
+
+        VideoMain_layout = QVBoxLayout()
+        VideoMain_layout.addWidget(self.video_widget)
+        VideoMain_layout.addWidget(VideoControl_layout)
+
+        self.setLayout(VideoMain_layout)
         
 
         # FONCTIONS
