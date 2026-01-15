@@ -1,11 +1,10 @@
-import sys
-from PyQt5.QtWidgets import QApplication, QDialog
-from Uis.MainWindow import MainWindow
-from Uis.MainWindow import txt_contentWindow
-from Uis.MainWindow import txt_videotitle
+# ============================================
+# MAIN
+# ============================================
 
-from utils.file_dialog import import_video
-from Medias.editor import create_clip, export_video
+import sys
+from PyQt5.QtWidgets import QApplication
+from main_window import MainWindow
 
 
 def main():
@@ -15,6 +14,7 @@ def main():
     main_window.show()
 
     sys.exit(app.exec_())
- 
+
+
 if __name__ == "__main__":
     main()

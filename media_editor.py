@@ -1,5 +1,10 @@
+# ============================================
+# MEDIAS - EDITOR
+# ============================================
+
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
-from config import FONT_SIZE, DEFAULT_DURATION, CODEC
+from config import CODEC, DEFAULT_DURATION, FONT_SIZE
+
 
 def create_clip(video_path, text=None):
     clip = VideoFileClip(video_path).subclipped(0, DEFAULT_DURATION)
@@ -21,5 +26,4 @@ def create_clip(video_path, text=None):
 
 
 def export_video(video, name):
-    
     video.write_videofile(name + CODEC)

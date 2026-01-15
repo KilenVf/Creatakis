@@ -1,62 +1,24 @@
 # ============================================
-# CONFIG
-# ============================================
-CODEC = ".mp4"
-DEFAULT_DURATION = 5
-FONT_SIZE = 100
-
-
-# ============================================
-# UTILS - FILE DIALOG
-# ============================================
-from tkinter import Tk, filedialog
-
-def import_video():
-    root = Tk()
-    root.withdraw()
-    return filedialog.askopenfilename()
-
-
-# ============================================
-# MEDIAS - EDITOR
-# ============================================
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
-
-def create_clip(video_path, text=None):
-    clip = VideoFileClip(video_path).subclipped(0, DEFAULT_DURATION)
-
-    if text:
-        txt = (
-            TextClip(
-                text=text,
-                font_size=FONT_SIZE,
-                color="white",
-                size=(clip.w, 200)
-            )
-            .with_position("center")
-            .with_duration(DEFAULT_DURATION)
-        )
-        return CompositeVideoClip([clip, txt])
-
-    return clip
-
-
-def export_video(video, name):
-    video.write_videofile(name + CODEC)
-
-
-# ============================================
 # UIS - MAIN WINDOW (avec OpenCV)
 # ============================================
-from PyQt5.QtWidgets import QApplication, QLineEdit, QWidget, QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenuBar, QMainWindow, QSlider
-from PyQt5.QtCore import Qt, QUrl, QTimer
+
+from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
+                             QVBoxLayout, QHBoxLayout, QMainWindow, QSlider)
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QImage, QPixmap
 import cv2
 import numpy as np
 
+from utils import import_video
+from media_editor import create_clip
+from dialogs import txt_contentWindow, txt_videotitle
+from config import CODEC
+
+
 media = ''
 video = None
 file_path = None
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -70,10 +32,10 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
 
         fichier = menubar.addMenu("Fichier")
-        fichier.addAction("Nouveau" )
+        fichier.addAction("Nouveau")
         fichier.addAction("Ouvrir")
-        fichier.addAction("Enregistrer" )
-        fichier.addAction("Enregistrer sous" )
+        fichier.addAction("Enregistrer")
+        fichier.addAction("Enregistrer sous")
         fichier.addAction("Importer média", self.importer_media)
         fichier.addAction("Exporter média", self.exporter_media)
         fichier.addAction("Quitter", self.quitter)
@@ -181,11 +143,13 @@ class MainWindow(QMainWindow):
 
         # Ajouter le texte si présent
         if self.text_to_display:
-            text_size = cv2.getTextSize(self.text_to_display, self.text_font, self.text_size, self.text_thickness)[0]
+            text_size = cv2.getTextSize(self.text_to_display, self.text_font, 
+                                       self.text_size, self.text_thickness)[0]
             text_x = (frame.shape[1] - text_size[0]) // 2
             text_y = (frame.shape[0] + text_size[1]) // 2
             cv2.putText(frame, self.text_to_display, (text_x, text_y), 
-                       self.text_font, self.text_size, self.text_color, self.text_thickness)
+                       self.text_font, self.text_size, self.text_color, 
+                       self.text_thickness)
 
         # Convertir BGR en RGB pour PyQt
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -258,104 +222,5 @@ class MainWindow(QMainWindow):
         if export_name:
             return video.write_videofile(export_name + CODEC)
 
-    def quitter(self): 
-            return
-
-
-class ask_txt(QDialog):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Confirmation")
-        self.setFixedSize(300, 120)
-
-        label = QLabel("Voulez-vous ajouter un texte ?")
-        label.setAlignment(Qt.AlignCenter)
-
-        btn_oui = QPushButton("Oui")
-        btn_non = QPushButton("Non")
-
-        btn_oui.clicked.connect(self.accept)
-        btn_non.clicked.connect(self.reject)
-
-        hbox = QHBoxLayout()
-        hbox.addWidget(btn_oui)
-        hbox.addWidget(btn_non)
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(label)
-        vbox.addLayout(hbox)
-
-        self.setLayout(vbox)
-
-class txt_contentWindow(QDialog):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Text completion")
-        self.setFixedSize(400,150)
-
-        label = QLabel("Entre le texte à afficher")
-        label.setAlignment(Qt.AlignCenter)
-
-        self.line_edit = QLineEdit()
-        self.line_edit.setPlaceholderText("Ton texte ici ...")
-
-        btn_ok = QPushButton("Valider")
-        btn_ok.clicked.connect(self.valider)
-
-        layout =QVBoxLayout()
-        layout.addWidget(label)
-        layout.addWidget(self.line_edit)
-        layout.addWidget(btn_ok)
-
-        self.setLayout(layout)
-        self.text_value =""
-
-    def valider(self):
-        self.text_value = self.line_edit.text()
-        self.accept()
-
-class txt_videotitle(QDialog):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Title Completion")
-        self.setFixedSize(400,150)
-
-        label = QLabel("Entre le titre de ta vidéo")
-        label.setAlignment(Qt.AlignCenter)
-
-        self.line_edit = QLineEdit()
-        self.line_edit.setPlaceholderText("Ton titre ici ...")
-
-        btn_ok = QPushButton("Valider")
-        btn_ok.clicked.connect(self.valider)
-
-        layout =QVBoxLayout()
-        layout.addWidget(label)
-        layout.addWidget(self.line_edit)
-        layout.addWidget(btn_ok)
-
-        self.setLayout(layout)
-        self.text_value =""
-
-    def valider(self):
-        self.text_value = self.line_edit.text()
-        self.accept()
-
-
-# ============================================
-# MAIN
-# ============================================
-def main():
-    app = QApplication(sys.argv)
-
-    main_window = MainWindow()
-    main_window.show()
-
-    sys.exit(app.exec_())
- 
-if __name__ == "__main__":
-    import sys
-    main()
+    def quitter(self):
+        return

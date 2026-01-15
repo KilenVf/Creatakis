@@ -1,4 +1,9 @@
+# ============================================
+# UTILS - FILE DIALOG
+# ============================================
+
 from tkinter import Tk, filedialog
+
 
 def import_video():
     root = Tk()
