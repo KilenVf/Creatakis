@@ -48,13 +48,12 @@ class MainWindow(QMainWindow):
         # ===== CENTRAL WIDGET =====
         central = QWidget(self)
         self.setCentralWidget(central)
-        vbox = QVBoxLayout(central)
 
         # ===== VIDEO PLAYER =====
         self.player = QMediaPlayer()
         self.video_widget = QVideoWidget()
         self.player.setVideoOutput(self.video_widget)
-        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+        
 
         self.btn_play = QPushButton('Play')
         self.btn_pause = QPushButton('Pause')
@@ -77,9 +76,9 @@ class MainWindow(QMainWindow):
 
         VideoMain_layout = QVBoxLayout()
         VideoMain_layout.addWidget(self.video_widget)
-        VideoMain_layout.addWidget(VideoControl_layout)
+        VideoMain_layout.addLayout(VideoControl_layout)
 
-        self.setLayout(VideoMain_layout)
+        central.setLayout(VideoMain_layout)
         
 
         # FONCTIONS
@@ -89,6 +88,7 @@ class MainWindow(QMainWindow):
         file_path = import_video()
         if file_path:
             video = create_clip(file_path)
+            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             print(f"Video imported: {file_path}")
         return
 
