@@ -28,11 +28,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Creatakis")
         self.setWindowIcon(QIcon("assets/logo.png"))
         self.setMinimumSize(1280, 720)
+        self.setStyleSheet('background-color: grey;')
 
         # ===== MENU =====
         menubar = self.menuBar()
+        menubar.setStyleSheet('background-color: #313033;')
 
         fichier = menubar.addMenu("Fichier")
+        fichier.setStyleSheet("background-color: blue; color: yellow;")
         fichier.addAction("Nouveau")
         fichier.addAction("Ouvrir")
         fichier.addAction("Enregistrer")
@@ -70,6 +73,13 @@ class MainWindow(QMainWindow):
         self.btn_add_text = QPushButton('Ajouter texte')
         self.btn_remove_text = QPushButton('Supprimer texte')
 
+        self.btn_play.setStyleSheet('background-color: grey;')
+        self.btn_pause.setStyleSheet('background-color: grey;')
+        self.btn_stop.setStyleSheet('background-color: grey;')
+        self.btn_add_text.setStyleSheet('background-color: grey;')
+        self.btn_remove_text.setStyleSheet('background-color: grey;')
+
+
         self.btn_play.clicked.connect(self.play)
         self.btn_pause.clicked.connect(self.pause)
         self.btn_stop.clicked.connect(self.stop)
@@ -97,13 +107,14 @@ class MainWindow(QMainWindow):
         VideoControl_layout.addWidget(self.volume_slider)
 
         video_container = QVBoxLayout()
-        video_container.addWidget(self.video_label)
+        video_container.addWidget(self.video_label, 0, Qt.AlignCenter)
         video_container.addWidget(self.position_slider)
         video_container.addLayout(VideoControl_layout)
 
         VideoMain_layout = QGridLayout()
-        VideoMain_layout.addLayout(video_container, 0, 5, Qt.AlignTop | Qt.AlignRight)
+        VideoMain_layout.addLayout(video_container, 0, 2)
         VideoMain_layout.setColumnStretch(0, 1)
+        VideoMain_layout.setColumnStretch(1, 1)
         VideoMain_layout.setRowStretch(1, 1)  
 
         central.setLayout(VideoMain_layout)
