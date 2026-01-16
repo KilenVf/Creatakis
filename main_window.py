@@ -55,6 +55,8 @@ class MainWindow(QMainWindow):
         # ===== CENTRAL WIDGET =====
         central = QWidget(self)
         self.setCentralWidget(central)
+        a= 2
+        a=3
 
         # ===== VIDEO PLAYER OpenCV =====
         self.video_label = QLabel()
