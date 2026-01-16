@@ -3,7 +3,8 @@
 # ============================================
 
 from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
-                             QVBoxLayout, QHBoxLayout, QMainWindow, QSlider)
+                             QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
+                             QGridLayout)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QImage, QPixmap
 import cv2
@@ -55,11 +56,11 @@ class MainWindow(QMainWindow):
         central = QWidget(self)
         self.setCentralWidget(central)
 
-        # ===== VIDEO PLAYER avec OpenCV =====
+        # ===== VIDEO PLAYER OpenCV =====
         self.video_label = QLabel()
-        self.video_label.setMinimumSize(800, 600)
+        self.video_label.setMinimumSize(400,300)
+        self.video_label.setMaximumSize(400,300)
         self.video_label.setStyleSheet("background-color: black;")
-        self.video_label.setAlignment(Qt.AlignCenter)
 
         self.btn_play = QPushButton('Play')
         self.btn_pause = QPushButton('Pause')
@@ -78,9 +79,9 @@ class MainWindow(QMainWindow):
         self.volume_slider.setValue(50)
         self.volume_slider.setMaximumWidth(100)
 
-        # Slider pour la position de la vidéo
         self.position_slider = QSlider(Qt.Horizontal)
         self.position_slider.setRange(0, 100)
+        self.position_slider.setMaximumWidth(400)
         self.position_slider.sliderMoved.connect(self.seek_video)
 
         VideoControl_layout = QHBoxLayout()
@@ -89,26 +90,30 @@ class MainWindow(QMainWindow):
         VideoControl_layout.addWidget(self.btn_stop)
         VideoControl_layout.addWidget(self.btn_add_text)
         VideoControl_layout.addWidget(self.btn_remove_text)
+        VideoControl_layout.addStretch()
         VideoControl_layout.addWidget(QLabel("Volume:"))
         VideoControl_layout.addWidget(self.volume_slider)
 
-        VideoMain_layout = QVBoxLayout()
-        VideoMain_layout.addWidget(self.video_label)
-        VideoMain_layout.addWidget(self.position_slider)
-        VideoMain_layout.addLayout(VideoControl_layout)
+        video_container = QVBoxLayout()
+        video_container.addWidget(self.video_label)
+        video_container.addWidget(self.position_slider)
+        video_container.addLayout(VideoControl_layout)
+
+        VideoMain_layout = QGridLayout()
+        VideoMain_layout.addLayout(video_container, 0, 5, Qt.AlignTop | Qt.AlignRight)
+        VideoMain_layout.setColumnStretch(0, 1)
+        VideoMain_layout.setRowStretch(1, 1)  
 
         central.setLayout(VideoMain_layout)
 
-        # Variables OpenCV
         self.cap = None
         self.is_playing = False
         self.text_to_display = None
-        self.text_color = (255, 255, 255)  # Blanc en BGR
+        self.text_color = (255, 255, 255) 
         self.text_font = cv2.FONT_HERSHEY_SIMPLEX
         self.text_size = 1
         self.text_thickness = 2
 
-        # Timer pour mettre à jour la vidéo
         self.timer = QTimer()
         self.timer.timeout.connect(self.display_frame)
 
@@ -118,7 +123,6 @@ class MainWindow(QMainWindow):
         if file_path:
             video = create_clip(file_path)
             
-            # Ouvrir la vidéo avec OpenCV
             self.cap = cv2.VideoCapture(file_path)
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -138,10 +142,8 @@ class MainWindow(QMainWindow):
             self.stop()
             return
 
-        # Redimensionner le frame pour l'affichage
-        frame = cv2.resize(frame, (800, 600))
+        frame = cv2.resize(frame, (400, 300))
 
-        # Ajouter le texte si présent
         if self.text_to_display:
             text_size = cv2.getTextSize(self.text_to_display, self.text_font, 
                                        self.text_size, self.text_thickness)[0]
