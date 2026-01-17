@@ -14,6 +14,8 @@ from utils import import_video
 from dialogs import txt_contentWindow, txt_videotitle
 from config import CODEC
 
+from timeline import Timeline
+
 media = ''
 video = None
 file_path = None
@@ -88,10 +90,9 @@ class MainWindow(QMainWindow):
         self.volume_slider.setValue(50)
         self.volume_slider.setMaximumWidth(100)
 
-        self.position_slider = QSlider(Qt.Horizontal)
-        self.position_slider.setRange(0, 100)
-        self.position_slider.setMaximumWidth(400)
-        self.position_slider.sliderMoved.connect(self.seek_video)
+        self.timeline = Timeline()
+        self.timeline.positionChanged.connect(self.seek_video)
+
 
         VideoControl_layout = QHBoxLayout()
         VideoControl_layout.addWidget(self.btn_play)
@@ -105,7 +106,7 @@ class MainWindow(QMainWindow):
 
         video_container = QVBoxLayout()
         video_container.addWidget(self.video_label, 0, Qt.AlignCenter)
-        video_container.addWidget(self.position_slider)
+        video_container.addWidget(self.timeline)
         video_container.addLayout(VideoControl_layout)
 
         VideoMain_layout = QGridLayout()
@@ -138,8 +139,10 @@ class MainWindow(QMainWindow):
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             self.frame_interval = int(1000 / self.fps) if self.fps > 0 else 33
-            
-            self.position_slider.setRange(0, self.total_frames)
+
+            self.timeline.set_total_frames(self.total_frames)
+            self.timeline.set_current_frame(0)
+
             
             print(f"Video imported: {file_path}")
             print(f"FPS: {self.fps}, Total frames: {self.total_frames}")
@@ -162,7 +165,7 @@ class MainWindow(QMainWindow):
                                        self.text_size, self.text_thickness)[0]
             text_x = (frame.shape[1] - text_size[0]) // 2
             text_y = (frame.shape[0] + text_size[1]) // 2
-            self.text_to_diplay = cv2.putText(frame, self.text_to_display, (text_x, text_y), 
+            self.text_to_display = cv2.putText(frame, self.text_to_display, (text_x, text_y), 
                        self.text_font, self.text_size, self.text_color, 
                        self.text_thickness)
             text = self.text_to_display
@@ -179,7 +182,8 @@ class MainWindow(QMainWindow):
 
         # Mettre à jour le slider de position
         current_frame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
-        self.position_slider.setValue(current_frame)
+        self.timeline.set_current_frame(current_frame)
+
 
     def play(self):
         if self.cap is None:
@@ -200,7 +204,7 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         if self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            self.position_slider.setValue(0)
+            self.timeline.set_current_frame(0)
         print("Arrêt...")
 
     def seek_video(self, frame_number):
