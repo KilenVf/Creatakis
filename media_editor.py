@@ -4,25 +4,17 @@
 
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 from config import CODEC, DEFAULT_DURATION, FONT_SIZE
+from main_window import text
 
+text = None
 
-def create_clip(video_path, text=None):
+def create_clip(video_path, text):
     clip = VideoFileClip(video_path).subclipped(0, DEFAULT_DURATION)
-
     if text:
-        txt = (
-            TextClip(
-                text=text,
-                font_size=FONT_SIZE,
-                color="white",
-                size=(clip.w, 200)
-            )
-            .with_position("center")
-            .with_duration(DEFAULT_DURATION)
-        )
-        return CompositeVideoClip([clip, txt])
+        return CompositeVideoClip([clip,text])
+    else:
+        return clip
 
-    return clip
 
 
 def export_video(video, name):

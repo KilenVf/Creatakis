@@ -11,15 +11,13 @@ import cv2
 import numpy as np
 
 from utils import import_video
-from media_editor import create_clip
 from dialogs import txt_contentWindow, txt_videotitle
 from config import CODEC
-
 
 media = ''
 video = None
 file_path = None
-
+text = None
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -32,10 +30,10 @@ class MainWindow(QMainWindow):
 
         # ===== MENU =====
         menubar = self.menuBar()
-        menubar.setStyleSheet('background-color: #313033;')
+        menubar.setStyleSheet('background-color: grey;')
 
         fichier = menubar.addMenu("Fichier")
-        fichier.setStyleSheet("background-color: blue; color: yellow;")
+        fichier.setStyleSheet("background-color: white; color: black;")
         fichier.addAction("Nouveau")
         fichier.addAction("Ouvrir")
         fichier.addAction("Enregistrer")
@@ -58,8 +56,7 @@ class MainWindow(QMainWindow):
         # ===== CENTRAL WIDGET =====
         central = QWidget(self)
         self.setCentralWidget(central)
-        a= 2
-        a=3
+
 
         # ===== VIDEO PLAYER OpenCV =====
         self.video_label = QLabel()
@@ -131,10 +128,11 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.display_frame)
 
     def importer_media(self):
+        from media_editor import create_clip
         global video, file_path
         file_path = import_video()
         if file_path:
-            video = create_clip(file_path)
+            video = create_clip(file_path,text)
             
             self.cap = cv2.VideoCapture(file_path)
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
@@ -147,6 +145,7 @@ class MainWindow(QMainWindow):
             print(f"FPS: {self.fps}, Total frames: {self.total_frames}")
 
     def display_frame(self):
+        global text
         if self.cap is None or not self.is_playing:
             return
 
@@ -158,13 +157,15 @@ class MainWindow(QMainWindow):
         frame = cv2.resize(frame, (400, 300))
 
         if self.text_to_display:
+            global text
             text_size = cv2.getTextSize(self.text_to_display, self.text_font, 
                                        self.text_size, self.text_thickness)[0]
             text_x = (frame.shape[1] - text_size[0]) // 2
             text_y = (frame.shape[0] + text_size[1]) // 2
-            cv2.putText(frame, self.text_to_display, (text_x, text_y), 
+            self.text_to_diplay = cv2.putText(frame, self.text_to_display, (text_x, text_y), 
                        self.text_font, self.text_size, self.text_color, 
                        self.text_thickness)
+            text = self.text_to_display
 
         # Convertir BGR en RGB pour PyQt
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -216,7 +217,10 @@ class MainWindow(QMainWindow):
         dialog = txt_contentWindow()
         if dialog.exec_():
             self.text_to_display = dialog.text_value
+            self.text_color = dialog.text_color
+            self.text_size = int(dialog.text_size)
             print(f"Texte ajouté: {self.text_to_display}")
+            
 
     def remove_text(self):
         """Supprimer le texte"""

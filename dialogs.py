@@ -2,7 +2,7 @@
 # DIALOGS - Fenêtres de dialogue
 # ============================================
 
-from PyQt5.QtWidgets import QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit
+from PyQt5.QtWidgets import QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox
 from PyQt5.QtCore import Qt
 
 
@@ -18,7 +18,6 @@ class ask_txt(QDialog):
 
         btn_oui = QPushButton("Oui")
         btn_non = QPushButton("Non")
-
         btn_oui.clicked.connect(self.accept)
         btn_non.clicked.connect(self.reject)
 
@@ -38,10 +37,22 @@ class txt_contentWindow(QDialog):
         super().__init__()
 
         self.setWindowTitle("Text completion")
-        self.setFixedSize(400, 150)
+        self.setFixedSize(400, 200)
 
-        label = QLabel("Entre le texte à afficher")
-        label.setAlignment(Qt.AlignCenter)
+        self.label = QLabel("Entre le texte à afficher et ses paramètres")
+        self.label.setAlignment(Qt.AlignCenter)
+
+        self.labelcolor = QLabel("Couleur")
+        self.labelcolor.setAlignment(Qt.AlignCenter)
+
+        self.labelsize = QLabel("Taille")
+        self.labelsize.setAlignment(Qt.AlignCenter)
+
+        self.choix_couleur = QComboBox()
+        self.choix_couleur.addItems(['Noir','Blanc','Bleu','Jaune','Violet','Rouge','Vert'])
+
+        self.choix_taille =QComboBox()
+        self.choix_taille.addItems(['1','2','3','4','5'])
 
         self.line_edit = QLineEdit()
         self.line_edit.setPlaceholderText("Ton texte ici ...")
@@ -50,15 +61,42 @@ class txt_contentWindow(QDialog):
         btn_ok.clicked.connect(self.valider)
 
         layout = QVBoxLayout()
-        layout.addWidget(label)
+        layout.addWidget(self.label)
         layout.addWidget(self.line_edit)
+        layout.addWidget(self.labelcolor)
+        layout.addWidget(self.choix_couleur)
+        layout.addWidget(self.labelsize)
+        layout.addWidget(self.choix_taille)
         layout.addWidget(btn_ok)
 
         self.setLayout(layout)
         self.text_value = ""
+        self.text_color = ""
+        self.text_size = 1
 
     def valider(self):
         self.text_value = self.line_edit.text()
+        self.text_size = self.choix_taille.currentText()
+
+        #trouver un moyen de convertir les couleur en numérique automatiquement#
+        if self.choix_couleur.currentText() == 'Noir':
+            self.text_color = (0,0,0)
+        elif self.choix_couleur.currentText() == 'Blanc':
+            self.text_color = (255,255,255)
+        elif self.choix_couleur.currentText() == 'Bleu':
+            self.text_color = (255,0,0)
+        elif self.choix_couleur.currentText() == 'Jaune':
+            self.text_color = (0,255,255)
+        elif self.choix_couleur.currentText() == 'Violet':
+            self.text_color = (128,0,128)
+        elif self.choix_couleur.currentText() == 'Rouge':
+            self.text_color = (0,0,255)
+        elif self.choix_couleur.currentText() == 'Vert':
+            self.text_color = (0,255,0)
+        else:
+            self.text_color = (0,0,0)
+         
+        
         self.accept()
 
 
@@ -89,3 +127,4 @@ class txt_videotitle(QDialog):
     def valider(self):
         self.text_value = self.line_edit.text()
         self.accept()
+
