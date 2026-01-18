@@ -106,6 +106,8 @@ class MainWindow(QMainWindow):
         self.timeline = Timeline()
         self.timeline.positionChanged.connect(self.seek_video)
 
+        videoTimeline_layout =QVBoxLayout()
+        videoTimeline_layout.addWidget(self.timeline)
 
         VideoControl_layout = QHBoxLayout()
         VideoControl_layout.addWidget(self.btn_play)
@@ -119,14 +121,14 @@ class MainWindow(QMainWindow):
 
         video_container = QVBoxLayout()
         video_container.addWidget(self.video_label, 0, Qt.AlignCenter)
-        video_container.addWidget(self.timeline)
         video_container.addLayout(VideoControl_layout)
 
         VideoMain_layout = QGridLayout()
+        VideoMain_layout.addLayout(videoTimeline_layout, 3,0, 2, 3)
         VideoMain_layout.addLayout(video_container, 0, 2)
         VideoMain_layout.setColumnStretch(0, 1)
         VideoMain_layout.setColumnStretch(1, 1)
-        VideoMain_layout.setRowStretch(1, 1)  
+        VideoMain_layout.setRowStretch(4, 1) 
 
         central.setLayout(VideoMain_layout)
 
