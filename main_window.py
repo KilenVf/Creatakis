@@ -14,7 +14,20 @@ from utils import import_video
 from dialogs import txt_contentWindow, txt_videotitle
 from config import CODEC
 
-from timeline import Timeline
+import sys
+import importlib
+if 'timeline' in sys.modules:
+    del sys.modules['timeline']
+
+print("Tentative d'import de timeline...")
+try:
+    from timeline import Timeline
+    print("Timeline importé avec succès!")
+    print(f"Timeline a positionChanged ? {hasattr(Timeline, 'positionChanged')}")
+except Exception as e:
+    print(f"Erreur d'import : {e}")
+    import traceback
+    traceback.print_exc()
 
 media = ''
 video = None

@@ -2,7 +2,7 @@
 # MEDIAS - EDITOR
 # ============================================
 
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 from config import CODEC, DEFAULT_DURATION, FONT_SIZE
 from main_window import text
 
