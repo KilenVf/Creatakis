@@ -13,10 +13,15 @@ import numpy as np
 from utils import import_video
 from dialogs import txt_contentWindow, txt_videotitle
 from config import CODEC
+from save_manager import save, save_
 
 import sys
 import importlib
 from timeline import Timeline
+
+import json
+import os
+from pathlib import Path
     
 
 media = ''
@@ -250,6 +255,12 @@ class MainWindow(QMainWindow):
         export_name = self.askMediaOutput()
         if export_name:
             return video.write_videofile(export_name + CODEC)
+        
+    def save_asbtn():
+        save = save_
+        json_text = json.dumps(save)
+        print(json_text)
+
 
     def quitter(self):
         return

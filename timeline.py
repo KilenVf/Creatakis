@@ -57,4 +57,4 @@ class Timeline(QWidget):
 
     def add_pisteMedia():
         #si import_media: une piste s'ajoute (un endroit ou mettre le bloc)
-        return
+        return 
