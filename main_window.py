@@ -153,9 +153,9 @@ class MainWindow(QMainWindow):
             print(f"Video imported: {file_path}")
             print(f"FPS: {self.fps}, Total frames: {self.total_frames}")
 
-    def display_frame(self):
+    def display_frame(self, force=False):
         global text
-        if self.cap is None or not self.is_playing:
+        if self.cap is None or (not self.is_playing and not force):
             return
 
         ret, frame = self.cap.read()
@@ -216,7 +216,7 @@ class MainWindow(QMainWindow):
     def seek_video(self, frame_number):
         if self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-            self.display_frame()
+            self.display_frame(force=True)
 
     def add_text_dialog(self):
         """Ajouter du texte via dialog"""
