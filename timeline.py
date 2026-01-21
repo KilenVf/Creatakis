@@ -5,6 +5,7 @@ from utils import import_video
 
 
 bloc_media = []
+index = -1
 
 class Timeline(QWidget):
     positionChanged = pyqtSignal(int)
@@ -50,6 +51,10 @@ class Timeline(QWidget):
     def add_Mediabloc():
         if import_video:
             bloc = QLabel()
+            index += 1
             bloc_media.append()
+        return bloc, index
 
-    def afficher_texte(): 
+    def add_pisteMedia():
+        #si import_media: une piste s'ajoute (un endroit ou mettre le bloc)
+        return
