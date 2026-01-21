@@ -1,7 +1,10 @@
-from PyQt5.QtWidgets import QWidget
+from PyQt5.QtWidgets import QWidget, QLabel
 from PyQt5.QtGui import QPainter, QColor
 from PyQt5.QtCore import Qt, pyqtSignal
+from utils import import_video
 
+
+bloc_media = []
 
 class Timeline(QWidget):
     positionChanged = pyqtSignal(int)
@@ -43,3 +46,10 @@ class Timeline(QWidget):
     def set_current_frame(self, frame):
         self.current_time = frame
         self.update()
+    
+    def add_Mediabloc():
+        if import_video:
+            bloc = QLabel()
+            bloc_media.append()
+
+    def afficher_texte(): 
