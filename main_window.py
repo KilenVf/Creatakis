@@ -16,18 +16,8 @@ from config import CODEC
 
 import sys
 import importlib
-if 'timeline' in sys.modules:
-    del sys.modules['timeline']
-
-print("Tentative d'import de timeline...")
-try:
-    from timeline import Timeline
-    print("Timeline importé avec succès!")
-    print(f"Timeline a positionChanged ? {hasattr(Timeline, 'positionChanged')}")
-except Exception as e:
-    print(f"Erreur d'import : {e}")
-    import traceback
-    traceback.print_exc()
+from timeline import Timeline
+    
 
 media = ''
 video = None
@@ -90,6 +80,7 @@ class MainWindow(QMainWindow):
         self.btn_stop.setStyleSheet('background-color: grey;')
         self.btn_add_text.setStyleSheet('background-color: grey;')
         self.btn_remove_text.setStyleSheet('background-color: grey;')
+
 
 
         self.btn_play.clicked.connect(self.play)
