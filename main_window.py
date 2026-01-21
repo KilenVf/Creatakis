@@ -165,13 +165,13 @@ class MainWindow(QMainWindow):
 
         frame = cv2.resize(frame, (400, 300))
 
-        if self.text_to_display:
+        if self.text_to_display is not None:
             global text
             text_size = cv2.getTextSize(self.text_to_display, self.text_font, 
                                        self.text_size, self.text_thickness)[0]
             text_x = (frame.shape[1] - text_size[0]) // 2
             text_y = (frame.shape[0] + text_size[1]) // 2
-            self.text_to_display = cv2.putText(frame, self.text_to_display, (text_x, text_y), 
+            frame = cv2.putText(frame, self.text_to_display, (text_x, text_y), 
                        self.text_font, self.text_size, self.text_color, 
                        self.text_thickness)
             text = self.text_to_display
