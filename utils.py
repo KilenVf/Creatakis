@@ -9,3 +9,5 @@ def import_video():
     root = Tk()
     root.withdraw()
     return filedialog.askopenfilename()
+
+ 
