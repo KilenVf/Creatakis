@@ -10,10 +10,11 @@ from PyQt5.QtGui import QIcon, QImage, QPixmap
 import cv2
 import numpy as np
 
-from utils import import_video
+from utils import import_video, save_as_path
 from dialogs import txt_contentWindow, txt_videotitle
-from config import CODEC
-from save_manager import save, save_
+from config import CODEC, media, video, file_path, text, save_file_path
+from save_manager import save_, load_save_data, update_datas
+from timeline import bloc_media, index
 
 import sys
 import importlib
@@ -21,13 +22,8 @@ from timeline import Timeline
 
 import json
 import os
-from pathlib import Path
-    
+from pathlib import Path 
 
-media = ''
-video = None
-file_path = None
-text = None
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -45,9 +41,9 @@ class MainWindow(QMainWindow):
         fichier = menubar.addMenu("Fichier")
         fichier.setStyleSheet("background-color: white; color: black;")
         fichier.addAction("Nouveau")
-        fichier.addAction("Ouvrir")
+        fichier.addAction("Ouvrir", self.load)
         fichier.addAction("Enregistrer")
-        fichier.addAction("Enregistrer sous")
+        fichier.addAction("Enregistrer sous", self.sauvegarder)
         fichier.addAction("Importer média", self.importer_media)
         fichier.addAction("Exporter média", self.exporter_media)
         fichier.addAction("Quitter", self.quitter)
@@ -255,12 +251,15 @@ class MainWindow(QMainWindow):
         export_name = self.askMediaOutput()
         if export_name:
             return video.write_videofile(export_name + CODEC)
-        
-    def save_asbtn():
-        save = save_
-        json_text = json.dumps(save)
-        print(json_text)
 
-
+    def sauvegarder(self):
+        save = save_(media, video, file_path, text, bloc_media, index)
+        return
+    
+    def load(self):
+        update_datas()
+        return
+    
     def quitter(self):
         return
+

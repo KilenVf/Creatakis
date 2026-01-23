@@ -2,10 +2,8 @@ from PyQt5.QtWidgets import QWidget, QLabel
 from PyQt5.QtGui import QPainter, QColor
 from PyQt5.QtCore import Qt, pyqtSignal
 from utils import import_video
+from config import bloc_media, index
 
-
-bloc_media = []
-index = -1
 
 class Timeline(QWidget):
     positionChanged = pyqtSignal(int)

@@ -128,3 +128,4 @@ class txt_videotitle(QDialog):
         self.text_value = self.line_edit.text()
         self.accept()
 
+        
