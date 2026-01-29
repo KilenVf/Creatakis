@@ -4,6 +4,7 @@ import os
 import config
 from config import CODEC, DEFAULT_DURATION, FONT_SIZE
 from utils import save_as_path, load_save
+from config import media, video, file_path, bloc_media, index, text
 
 def save_(media, video, file_path, text, bloc_media, index):
     chemin = save_as_path()
@@ -56,16 +57,16 @@ def update_datas():
 
     # Reconversion des données
     media_val = medias.get('media', '')
-    config.media = media_val if media_val != 'None' else ''
+    config.media = media_val
     
     video_val = medias.get('video')
-    config.video = video_val if video_val and video_val != 'None' else None
+    config.video = video_val
     
     file_path_val = medias.get('file_path')
-    config.file_path = file_path_val if file_path_val and file_path_val != 'None' else None
+    config.file_path = file_path_val
     
     text_val = effects.get('text')
-    config.text = text_val if text_val and text_val != 'None' else None
+    config.text = text_val
     
     config.bloc_media = eval(timeline_data.get('bloc_media', '[]'))
     config.index = int(timeline_data.get('index', -1))
