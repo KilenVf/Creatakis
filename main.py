@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QApplication
 from main_window import MainWindow
 
 
-def main():
+def main(): 
     app = QApplication(sys.argv)
 
     main_window = MainWindow()
