@@ -257,7 +257,7 @@ class MainWindow(QMainWindow):
         return
     
     def load(self):
-        update_datas()
+        update = update_datas()
         return
     
     def quitter(self):
