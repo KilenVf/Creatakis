@@ -13,7 +13,7 @@ def save_(media, video, file_path, text, bloc_media, index):
         return False
     data = {
         'default_data': {
-            'codec' : str(CODEC),
+             'codec' : str(CODEC),
             'default_duration' : str(DEFAULT_DURATION),
             'default_font_size' : str(FONT_SIZE)
         },
