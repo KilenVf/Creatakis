@@ -2,11 +2,11 @@
 # UIS - MAIN WINDOW (avec OpenCV)
 # ============================================
 
-from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
+from PyQt6.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
                              QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
                              QGridLayout)
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QIcon, QImage, QPixmap
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QIcon, QImage, QPixmap
 import cv2
 import numpy as np
 
