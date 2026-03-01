@@ -19,18 +19,18 @@ class Timeline(QWidget):
         painter.fillRect(self.rect(), QColor(30, 30, 30))
         
         bar_y = self.height() // 2
-        painter.setPen(Qt.white)
+        painter.setPen(Qt.GlobalColor.white)
         painter.drawLine(10, bar_y, self.width() - 10, bar_y)
         
         x = 10 + (self.current_time / self.duration) * (self.width() - 20)
-        painter.setPen(Qt.red)
+        painter.setPen(Qt.GlobalColor.red)
         painter.drawLine(int(x), bar_y - 15, int(x), bar_y + 15)
 
     def mousePressEvent(self, event):
         self.update_time(event.x())
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton:
+        if event.buttons() == Qt.MouseButton.LeftButton:
             self.update_time(event.x())
 
     def update_time(self, x):

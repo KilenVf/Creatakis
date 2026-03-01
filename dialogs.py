@@ -14,7 +14,7 @@ class ask_txt(QDialog):
         self.setFixedSize(300, 120)
 
         label = QLabel("Voulez-vous ajouter un texte ?")
-        label.setAlignment(Qt.AlignCenter)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         btn_oui = QPushButton("Oui")
         btn_non = QPushButton("Non")
@@ -40,13 +40,13 @@ class txt_contentWindow(QDialog):
         self.setFixedSize(400, 200)
 
         self.label = QLabel("Entre le texte à afficher et ses paramètres")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.labelcolor = QLabel("Couleur")
-        self.labelcolor.setAlignment(Qt.AlignCenter)
+        self.labelcolor.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.labelsize = QLabel("Taille")
-        self.labelsize.setAlignment(Qt.AlignCenter)
+        self.labelsize.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.choix_couleur = QComboBox()
         self.choix_couleur.addItems(['Noir','Blanc','Bleu','Jaune','Violet','Rouge','Vert'])
@@ -108,7 +108,7 @@ class txt_videotitle(QDialog):
         self.setFixedSize(400, 150)
 
         label = QLabel("Entre le titre de ta vidéo")
-        label.setAlignment(Qt.AlignCenter)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.line_edit = QLineEdit()
         self.line_edit.setPlaceholderText("Ton titre ici ...")

@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
         self.btn_add_text.clicked.connect(self.add_text_dialog)
         self.btn_remove_text.clicked.connect(self.remove_text)
 
-        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(50)
         self.volume_slider.setMaximumWidth(100)
@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
         VideoControl_layout.addWidget(self.volume_slider)
 
         video_container = QVBoxLayout()
-        video_container.addWidget(self.video_label, 0, Qt.AlignCenter)
+        video_container.addWidget(self.video_label, 0, Qt.AlignmentFlag.AlignCenter)
         video_container.addLayout(VideoControl_layout)
 
         VideoMain_layout = QGridLayout()
