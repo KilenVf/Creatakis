@@ -179,10 +179,16 @@ class MainWindow(QMainWindow):
 
         # Convertir BGR en RGB pour PyQt
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = frame_rgb.shape
-        bytes_per_line = ch * w
-        qt_image = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
-
+        frame_rgba = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2RGBA)
+        h, w, ch = frame_rgba.shape
+        bytes_per_line = 4 * w
+        qt_image = QImage(
+        frame_rgba.tobytes(),
+        w,
+        h,
+        bytes_per_line,
+        QImage.Format_RGBA8888
+)
         # Afficher l'image
         pixmap = QPixmap.fromImage(qt_image)
         self.video_label.setPixmap(pixmap)
