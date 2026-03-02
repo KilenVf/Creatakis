@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Creatakis")
         self.setWindowIcon(QIcon("assets/logo.png"))
-        self.setMinimumSize(1280, 720)
+        self.setGeometry(300,300, 1920, 1080)
         self.setStyleSheet('background-color: grey;')
 
         # ===== MENU =====
@@ -66,8 +66,8 @@ class MainWindow(QMainWindow):
 
         # ===== VIDEO PLAYER OpenCV =====
         self.video_label = QLabel()
-        self.video_label.setMinimumSize(400,300)
-        self.video_label.setMaximumSize(400,300)
+        self.video_label.setMinimumSize(550,350)
+        self.video_label.setMaximumSize(550,350)
         self.video_label.setStyleSheet("background-color: black;")
 
         self.btn_play = QPushButton('Play')
@@ -116,11 +116,13 @@ class MainWindow(QMainWindow):
         video_container.addLayout(VideoControl_layout)
 
         VideoMain_layout = QGridLayout()
-        VideoMain_layout.addLayout(videoTimeline_layout, 3,0, 2, 3)
-        VideoMain_layout.addLayout(video_container, 0, 2)
-        VideoMain_layout.setColumnStretch(0, 1)
-        VideoMain_layout.setColumnStretch(1, 1)
-        VideoMain_layout.setRowStretch(4, 1) 
+        VideoMain_layout.addLayout(videoTimeline_layout, 5,0,1,3)
+        VideoMain_layout.addLayout(video_container, 1, 2)
+        VideoMain_layout.setColumnStretch(0,1)
+        VideoMain_layout.setColumnStretch(1,1)
+        VideoMain_layout.setColumnStretch(2,2)
+
+    
 
         central.setLayout(VideoMain_layout)
 
@@ -163,8 +165,12 @@ class MainWindow(QMainWindow):
         if not ret:
             self.stop()
             return
+        
+        label_width = self.video_label.width()
+        label_height = self.video_label.height()
+        frame = cv2.resize(frame, (label_width, label_height))
 
-        frame = cv2.resize(frame, (400, 300))
+       
 
         if self.text_to_display is not None:
             global text
