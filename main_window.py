@@ -16,6 +16,8 @@ from config import CODEC, media, video, file_path, text, save_file_path, bloc_me
 from save_manager import save_, load_save_data, update_datas
 from timeline import Timeline
 
+from toolbox import ToolboxDock
+
 import sys
 import json
 import os
@@ -28,7 +30,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Creatakis")
         self.setWindowIcon(QIcon("assets/logo.png"))
-        self.setGeometry(300, 300, 1920, 1080)
+        self.setGeometry(300, 300, 1280, 720)
         self.setStyleSheet('background-color: grey;')
 
         # ===== MENU =====
@@ -46,6 +48,7 @@ class MainWindow(QMainWindow):
         fichier.addAction("Quitter", self.quitter)
 
         edition = menubar.addMenu("Edition")
+        edition.setStyleSheet("background-color: white; color: black;")
         edition.addAction("Annuler")
         edition.addAction("Retablir")
         edition.addAction("Couper")
@@ -53,8 +56,10 @@ class MainWindow(QMainWindow):
         edition.addAction("Dupliquer")
 
         affichage = menubar.addMenu("Affichage")
+        affichage.setStyleSheet("background-color: white; color: black;")
         affichage.addAction("Plein ecran", self.showFullScreen)
         affichage.addAction("Quitter plein ecran", self.showNormal)
+        affichage.addAction("Afficher la ToolBox", self.showtoolbox)
 
         # ===== CENTRAL WIDGET =====
         central = QWidget(self)
@@ -92,6 +97,16 @@ class MainWindow(QMainWindow):
         self.timeline.positionChanged.connect(self.seek_video)
         self.timeline.clipSelected.connect(self.on_clip_selected)
 
+        # TOOLBOX
+        self.toolbox = ToolboxDock(self)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.toolbox)
+        self.toolbox.gotoFrame.connect(self.seek_video)
+        self.toolbox.set_controller(self)
+
+            
+
+
+        # LAYOUT
         videoTimeline_layout = QVBoxLayout()
         videoTimeline_layout.addWidget(self.timeline)
 
@@ -105,6 +120,9 @@ class MainWindow(QMainWindow):
         VideoControl_layout.addWidget(QLabel("Volume:"))
         VideoControl_layout.addWidget(self.volume_slider)
 
+        VideoToolbox_layout = QHBoxLayout()
+        VideoToolbox_layout.addWidget(self.toolbox)
+
         video_container = QVBoxLayout()
         video_container.addWidget(self.video_label, 0, Qt.AlignCenter)
         video_container.addLayout(VideoControl_layout)
@@ -112,6 +130,7 @@ class MainWindow(QMainWindow):
         VideoMain_layout = QGridLayout()
         VideoMain_layout.addLayout(videoTimeline_layout, 5, 0, 1, 3)
         VideoMain_layout.addLayout(video_container, 1, 2)
+        VideoMain_layout.addLayout(VideoToolbox_layout,1,0,1,2)
         VideoMain_layout.setColumnStretch(0, 1)
         VideoMain_layout.setColumnStretch(1, 1)
         VideoMain_layout.setColumnStretch(2, 2)
@@ -272,3 +291,7 @@ class MainWindow(QMainWindow):
 
     def quitter(self):
         return
+
+    def showtoolbox(self):
+        self.toolbox.show()
+        self.toolbox.raise_()
