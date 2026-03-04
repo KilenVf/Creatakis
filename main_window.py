@@ -1,7 +1,3 @@
-# ============================================
-# UIS - MAIN WINDOW (avec OpenCV)
-# ============================================
-
 from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
                              QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
                              QGridLayout)
@@ -12,14 +8,11 @@ import numpy as np
 
 from utils import import_video, save_as_path
 from dialogs import txt_contentWindow, txt_videotitle
-from config import CODEC, media, video, file_path, text, save_file_path
+from config import CODEC, media, video, file_path, text, save_file_path, bloc_media, index
 from save_manager import save_, load_save_data, update_datas
-from timeline import bloc_media, index
-
-import sys
-import importlib
 from timeline import Timeline
 
+import sys
 import json
 import os
 from pathlib import Path 
@@ -31,7 +24,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Creatakis")
         self.setWindowIcon(QIcon("assets/logo.png"))
-        self.setGeometry(300,300, 1920, 1080)
+        self.setGeometry(300, 300, 1920, 1080)
         self.setStyleSheet('background-color: grey;')
 
         # ===== MENU =====
@@ -44,30 +37,29 @@ class MainWindow(QMainWindow):
         fichier.addAction("Ouvrir", self.load)
         fichier.addAction("Enregistrer")
         fichier.addAction("Enregistrer sous", self.sauvegarder)
-        fichier.addAction("Importer média", self.importer_media)
-        fichier.addAction("Exporter média", self.exporter_media)
+        fichier.addAction("Importer media", self.importer_media)
+        fichier.addAction("Exporter media", self.exporter_media)
         fichier.addAction("Quitter", self.quitter)
 
         edition = menubar.addMenu("Edition")
         edition.addAction("Annuler")
-        edition.addAction("Rétablir")
+        edition.addAction("Retablir")
         edition.addAction("Couper")
         edition.addAction("Supprimer")
         edition.addAction("Dupliquer")
 
         affichage = menubar.addMenu("Affichage")
-        affichage.addAction("Plein écran", self.showFullScreen)
-        affichage.addAction("Quitter plein écran", self.showNormal)
+        affichage.addAction("Plein ecran", self.showFullScreen)
+        affichage.addAction("Quitter plein ecran", self.showNormal)
 
         # ===== CENTRAL WIDGET =====
         central = QWidget(self)
         self.setCentralWidget(central)
 
-
         # ===== VIDEO PLAYER OpenCV =====
         self.video_label = QLabel()
-        self.video_label.setMinimumSize(550,350)
-        self.video_label.setMaximumSize(550,350)
+        self.video_label.setMinimumSize(550, 350)
+        self.video_label.setMaximumSize(550, 350)
         self.video_label.setStyleSheet("background-color: black;")
 
         self.btn_play = QPushButton('Play')
@@ -82,8 +74,6 @@ class MainWindow(QMainWindow):
         self.btn_add_text.setStyleSheet('background-color: grey;')
         self.btn_remove_text.setStyleSheet('background-color: grey;')
 
-
-
         self.btn_play.clicked.connect(self.play)
         self.btn_pause.clicked.connect(self.pause)
         self.btn_stop.clicked.connect(self.stop)
@@ -95,10 +85,11 @@ class MainWindow(QMainWindow):
         self.volume_slider.setValue(50)
         self.volume_slider.setMaximumWidth(100)
 
-        self.timeline = Timeline()
+        self.timeline = Timeline(self)
         self.timeline.positionChanged.connect(self.seek_video)
+        self.timeline.clipSelected.connect(self.on_clip_selected)
 
-        videoTimeline_layout =QVBoxLayout()
+        videoTimeline_layout = QVBoxLayout()
         videoTimeline_layout.addWidget(self.timeline)
 
         VideoControl_layout = QHBoxLayout()
@@ -116,20 +107,18 @@ class MainWindow(QMainWindow):
         video_container.addLayout(VideoControl_layout)
 
         VideoMain_layout = QGridLayout()
-        VideoMain_layout.addLayout(videoTimeline_layout, 5,0,1,3)
+        VideoMain_layout.addLayout(videoTimeline_layout, 5, 0, 1, 3)
         VideoMain_layout.addLayout(video_container, 1, 2)
-        VideoMain_layout.setColumnStretch(0,1)
-        VideoMain_layout.setColumnStretch(1,1)
-        VideoMain_layout.setColumnStretch(2,2)
-
-    
+        VideoMain_layout.setColumnStretch(0, 1)
+        VideoMain_layout.setColumnStretch(1, 1)
+        VideoMain_layout.setColumnStretch(2, 2)
 
         central.setLayout(VideoMain_layout)
 
         self.cap = None
         self.is_playing = False
         self.text_to_display = None
-        self.text_color = (255, 255, 255) 
+        self.text_color = (255, 255, 255)
         self.text_font = cv2.FONT_HERSHEY_SIMPLEX
         self.text_size = 1
         self.text_thickness = 2
@@ -142,17 +131,18 @@ class MainWindow(QMainWindow):
         global video, file_path
         file_path = import_video()
         if file_path:
-            video = create_clip(file_path,text)
-            
+            video = create_clip(file_path, text)
+
             self.cap = cv2.VideoCapture(file_path)
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             self.frame_interval = int(1000 / self.fps) if self.fps > 0 else 33
 
+            self.timeline.set_fps(self.fps)
             self.timeline.set_total_frames(self.total_frames)
             self.timeline.set_current_frame(0)
+            self.timeline.add_video_clip(file_path, 0, self.total_frames)
 
-            
             print(f"Video imported: {file_path}")
             print(f"FPS: {self.fps}, Total frames: {self.total_frames}")
 
@@ -165,50 +155,43 @@ class MainWindow(QMainWindow):
         if not ret:
             self.stop()
             return
-        
+
         label_width = self.video_label.width()
         label_height = self.video_label.height()
         frame = cv2.resize(frame, (label_width, label_height))
 
-       
-
         if self.text_to_display is not None:
-            global text
-            text_size = cv2.getTextSize(self.text_to_display, self.text_font, 
-                                       self.text_size, self.text_thickness)[0]
+            text_size = cv2.getTextSize(self.text_to_display, self.text_font,
+                                        self.text_size, self.text_thickness)[0]
             text_x = (frame.shape[1] - text_size[0]) // 2
             text_y = (frame.shape[0] + text_size[1]) // 2
-            frame = cv2.putText(frame, self.text_to_display, (text_x, text_y), 
-                       self.text_font, self.text_size, self.text_color, 
-                       self.text_thickness)
+            frame = cv2.putText(frame, self.text_to_display, (text_x, text_y),
+                                self.text_font, self.text_size, self.text_color,
+                                self.text_thickness)
             text = self.text_to_display
 
-        # Convertir BGR en RGB pour PyQt
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_rgba = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2RGBA)
         h, w, ch = frame_rgba.shape
         bytes_per_line = 4 * w
         qt_image = QImage(
-        frame_rgba.tobytes(),
-        w,
-        h,
-        bytes_per_line,
-        QImage.Format_RGBA8888
-)
-        # Afficher l'image
+            frame_rgba.tobytes(),
+            w,
+            h,
+            bytes_per_line,
+            QImage.Format_RGBA8888
+        )
+
         pixmap = QPixmap.fromImage(qt_image)
         self.video_label.setPixmap(pixmap)
 
-        # Mettre à jour le slider de position
         current_frame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
         self.timeline.set_current_frame(current_frame)
 
-
     def play(self):
         if self.cap is None:
-            print("Veuillez importer une vidéo d'abord")
+            print("Veuillez importer une video d'abord")
             return
-        
         self.is_playing = True
         self.timer.start(self.frame_interval)
         print("Lecture en cours...")
@@ -224,7 +207,7 @@ class MainWindow(QMainWindow):
         if self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.timeline.set_current_frame(0)
-        print("Arrêt...")
+        print("Arret...")
 
     def seek_video(self, frame_number):
         if self.cap:
@@ -232,23 +215,35 @@ class MainWindow(QMainWindow):
             self.display_frame(force=True)
 
     def add_text_dialog(self):
-        """Ajouter du texte via dialog"""
         if self.cap is None:
-            print("Veuillez importer une vidéo d'abord")
+            print("Veuillez importer une video d'abord")
             return
-        
+
         dialog = txt_contentWindow()
         if dialog.exec_():
             self.text_to_display = dialog.text_value
             self.text_color = dialog.text_color
             self.text_size = int(dialog.text_size)
-            print(f"Texte ajouté: {self.text_to_display}")
-            
+
+            current_frame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+            text_duration = 150
+
+            self.timeline.add_text_clip(
+                text_content=self.text_to_display,
+                start_frame=current_frame,
+                duration_frames=text_duration
+            )
+
+            print(f"Texte ajoute: {self.text_to_display}")
+
+    def on_clip_selected(self, clip):
+        print(f"Clip selectionne : {clip}")
+        if clip.clip_type == "text":
+            print(f"Contenu texte : {clip.text_content}")
 
     def remove_text(self):
-        """Supprimer le texte"""
         self.text_to_display = None
-        print("Texte supprimé")
+        print("Texte supprime")
 
     def askMediaOutput(self):
         dialog = txt_videotitle()
@@ -267,13 +262,10 @@ class MainWindow(QMainWindow):
     def sauvegarder(self):
         save = save_(media, video, file_path, text, bloc_media, index)
         return
-    
+
     def load(self):
         update = update_datas()
         return
-    
+
     def quitter(self):
         return
-
-
-      
