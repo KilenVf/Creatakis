@@ -63,12 +63,11 @@ class MainWindow(QMainWindow):
         # ===== VIDEO PLAYER OpenCV =====
         self.video_label = QLabel()
         self.video_label.setMinimumSize(640, 360)
-        #self.video_label.setMaximumSize(550, 350)
         self.video_label.setStyleSheet("background-color: black;")
 
-        self.btn_play = QPushButton('Play')
-        self.btn_pause = QPushButton('Pause')
-        self.btn_stop = QPushButton('Stop')
+        self.btn_play = QPushButton('▶️')
+        self.btn_pause = QPushButton('⏸️')
+        self.btn_stop = QPushButton('⏹️')
         self.btn_add_text = QPushButton('Ajouter texte')
         self.btn_remove_text = QPushButton('Supprimer texte')
 
