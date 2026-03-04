@@ -1,3 +1,7 @@
+# ============================================
+# UIS - MAIN WINDOW (avec OpenCV)
+# ============================================
+
 from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
                              QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
                              QGridLayout)
