@@ -12,7 +12,7 @@ import numpy as np
 
 from utils import import_video, save_as_path
 from dialogs import txt_contentWindow, txt_videotitle
-from config import CODEC, media, video, file_path, text, save_file_path, bloc_media, index
+from config import CODEC, media, video, file_path, text, save_file_path, bloc_media, index, focus_boutons
 from save_manager import save_, load_save_data, update_datas
 from timeline import Timeline
 
@@ -21,7 +21,9 @@ from toolbox import ToolboxDock
 import sys
 import json
 import os
-from pathlib import Path 
+from pathlib import Path
+
+
 
 
 class MainWindow(QMainWindow):
@@ -32,6 +34,14 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("assets/logo.png"))
         self.setGeometry(300, 300, 1280, 720)
         self.setStyleSheet('background-color: grey;')
+
+        # TOOLBOX
+        self.toolbox = ToolboxDock(self)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.toolbox)
+        self.toolbox.set_controller(self)
+
+        #enlever le focus des boutons
+        focus_boutons(self)
 
         # ===== MENU =====
         menubar = self.menuBar()
@@ -73,20 +83,20 @@ class MainWindow(QMainWindow):
         self.btn_play = QPushButton('▶️')
         self.btn_pause = QPushButton('⏸️')
         self.btn_stop = QPushButton('⏹️')
-        self.btn_add_text = QPushButton('Ajouter texte')
-        self.btn_remove_text = QPushButton('Supprimer texte')
+        #self.btn_add_text = QPushButton('Ajouter texte')
+        #self.btn_remove_text = QPushButton('Supprimer texte')
 
         self.btn_play.setStyleSheet('background-color: grey;')
         self.btn_pause.setStyleSheet('background-color: grey;')
         self.btn_stop.setStyleSheet('background-color: grey;')
-        self.btn_add_text.setStyleSheet('background-color: grey;')
-        self.btn_remove_text.setStyleSheet('background-color: grey;')
+        self.toolbox.btn_add_text.setStyleSheet('background-color: grey;')
+        self.toolbox.btn_remove_text.setStyleSheet('background-color: grey;')
 
         self.btn_play.clicked.connect(self.play)
         self.btn_pause.clicked.connect(self.pause)
         self.btn_stop.clicked.connect(self.stop)
-        self.btn_add_text.clicked.connect(self.add_text_dialog)
-        self.btn_remove_text.clicked.connect(self.remove_text)
+        self.toolbox.btn_add_text.clicked.connect(self.add_text_dialog)
+        self.toolbox.btn_remove_text.clicked.connect(self.remove_text)
 
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
@@ -97,13 +107,7 @@ class MainWindow(QMainWindow):
         self.timeline.positionChanged.connect(self.seek_video)
         self.timeline.clipSelected.connect(self.on_clip_selected)
 
-        # TOOLBOX
-        self.toolbox = ToolboxDock(self)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.toolbox)
-        self.toolbox.gotoFrame.connect(self.seek_video)
-        self.toolbox.set_controller(self)
-
-            
+        
 
 
         # LAYOUT
@@ -114,8 +118,8 @@ class MainWindow(QMainWindow):
         VideoControl_layout.addWidget(self.btn_play)
         VideoControl_layout.addWidget(self.btn_pause)
         VideoControl_layout.addWidget(self.btn_stop)
-        VideoControl_layout.addWidget(self.btn_add_text)
-        VideoControl_layout.addWidget(self.btn_remove_text)
+        #VideoControl_layout.addWidget(self.btn_add_text)
+        #VideoControl_layout.addWidget(self.btn_remove_text)
         VideoControl_layout.addStretch()
         VideoControl_layout.addWidget(QLabel("Volume:"))
         VideoControl_layout.addWidget(self.volume_slider)
@@ -154,6 +158,7 @@ class MainWindow(QMainWindow):
         file_path = import_video()
         if file_path:
             video = create_clip(file_path, text)
+            audio = video.audio
 
             self.cap = cv2.VideoCapture(file_path)
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
@@ -293,5 +298,6 @@ class MainWindow(QMainWindow):
         return
 
     def showtoolbox(self):
+
         self.toolbox.show()
         self.toolbox.raise_()
