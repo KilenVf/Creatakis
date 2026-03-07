@@ -21,3 +21,11 @@ save_file_path = None
 # TIMELINE
 bloc_media = []
 index = -1
+
+#focus des boutons une fois cliqué
+from PyQt5.QtWidgets import QPushButton
+from PyQt5.QtCore import Qt
+
+def focus_boutons(window):
+    for bouton in window.findChildren(QPushButton):
+        bouton.setFocusPolicy(Qt.NoFocus)
