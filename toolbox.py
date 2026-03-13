@@ -7,10 +7,10 @@ from typing import Dict, Any
 
 from PyQt5.QtWidgets import (
     QDockWidget, QWidget, QLabel, QPushButton, QSlider, QColorDialog,
-    QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGridLayout, QSizePolicy, QTreeWidget
+    QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGridLayout, QSizePolicy, QTreeWidget, QHeaderView, QTreeWidgetItem
 )
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QFont
 
 from config import focus_boutons
 
@@ -33,7 +33,23 @@ class ToolboxDock(QDockWidget):
         self.tree.setColumnCount(3)
         self.tree.setHeaderLabels(['Nom','Type','Taille'])
         self.tree.header().setVisible(True)
-        self.tree;self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.tree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        self.header = self.tree.header()
+        self.header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+
+        #tri par clic
+        self.tree.setSortingEnabled(True)
+        self.tree.sortByColumn(0, Qt.SortOrder.AscendingOrder)
+
+        #ajouter des item
+
+        self.item_top = QTreeWidgetItem(self.tree)
+        self.item_top.setText(0, 'Dossier Projet')
+        self.item_top.setText(1, 'dossier')
+        self.item_top.setText(2, '__')
 
 
         self.container = QWidget(self)
