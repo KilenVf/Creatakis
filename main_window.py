@@ -12,9 +12,9 @@ import numpy as np
 
 from utils import import_video, save_as_path
 from dialogs import txt_contentWindow, txt_videotitle
-from config import CODEC, media, video, file_path, text, save_file_path, bloc_media, index, focus_boutons
 from save_manager import save_, load_save_data, update_datas
 from timeline import Timeline
+import config
 
 from toolbox import ToolboxDock
 
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
         self.toolbox.set_controller(self)
 
         #enlever le focus des boutons
-        focus_boutons(self)
+        config.focus_boutons(self)
 
         # ===== MENU =====
         menubar = self.menuBar()
@@ -154,13 +154,12 @@ class MainWindow(QMainWindow):
 
     def importer_media(self):
         from media_editor import create_clip
-        global video, file_path
-        file_path = import_video()
-        if file_path:
-            video = create_clip(file_path, text)
-            audio = video.audio
+        config.file_path, config.nom_fichier = import_video()
+        if  config.file_path:
+            config.video = create_clip( config.file_path)
+            config.audio = config.video.audio
 
-            self.cap = cv2.VideoCapture(file_path)
+            self.cap = cv2.VideoCapture(config.file_path)
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             self.frame_interval = int(1000 / self.fps) if self.fps > 0 else 33
@@ -168,9 +167,9 @@ class MainWindow(QMainWindow):
             self.timeline.set_fps(self.fps)
             self.timeline.set_total_frames(self.total_frames)
             self.timeline.set_current_frame(0)
-            self.timeline.add_video_clip(file_path, 0, self.total_frames)
+            self.timeline.add_video_clip( config.file_path, 0, self.total_frames)
 
-            print(f"Video imported: {file_path}")
+            print(f"Video imported: { config.file_path}")
             print(f"FPS: {self.fps}, Total frames: {self.total_frames}")
 
     def display_frame(self, force=False):
@@ -279,15 +278,15 @@ class MainWindow(QMainWindow):
         return None
 
     def exporter_media(self):
-        if video is None:
+        if config.video is None:
             print("No video loaded. Please import a video first.")
             return
         export_name = self.askMediaOutput()
         if export_name:
-            return video.write_videofile(export_name + CODEC)
+            return config.video.write_videofile(export_name + config.CODEC)
 
     def sauvegarder(self):
-        save = save_(media, video, file_path, text, bloc_media, index)
+        save = save_(config.media, config.video, config.file_path, config.text, config.bloc_media, config.index)
         return
 
     def load(self):

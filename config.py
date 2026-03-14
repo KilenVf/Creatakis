@@ -9,6 +9,7 @@ FONT_SIZE = 100
 # SAVE_MANAGER
 data = None
 json_text = None
+nom_chemin = None
 
 # MAIN_WINDOW
 
@@ -17,6 +18,8 @@ video=None
 file_path=None
 text=None
 save_file_path = None
+nom_fichier = None
+audio = None
 
 # TIMELINE
 bloc_media = []
