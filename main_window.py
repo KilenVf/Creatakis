@@ -291,6 +291,24 @@ class MainWindow(QMainWindow):
 
     def load(self):
         update = update_datas()
+        from media_editor import create_clip
+        if  config.file_path:
+            config.video = create_clip( config.file_path)
+            config.audio = config.video.audio
+
+            self.cap = cv2.VideoCapture(config.file_path)
+            self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+            self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.frame_interval = int(1000 / self.fps) if self.fps > 0 else 33
+
+            self.timeline.set_fps(self.fps)
+            self.timeline.set_total_frames(self.total_frames)
+            self.timeline.set_current_frame(0)
+            self.timeline.add_video_clip( config.file_path, 0, self.total_frames)
+
+            print(f"Video imported: { config.file_path}")
+            print(f"FPS: {self.fps}, Total frames: {self.total_frames}")
+
         return
 
     def quitter(self):

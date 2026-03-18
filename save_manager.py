@@ -58,11 +58,6 @@ def update_datas():
     config.file_path = medias.get('file_path')  # le chemin suffit, on recharge le clip après
     config.text = effects.get('text')
     config.index = int(timeline_data.get('index', -1))
-
-    # Recharger le clip MoviePy depuis le chemin
-    if config.file_path and config.file_path != 'None':
-        from media_editor import create_clip
-        config.video = create_clip(config.file_path)
     
     return True
 
