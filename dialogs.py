@@ -78,7 +78,6 @@ class txt_contentWindow(QDialog):
         self.text_value = self.line_edit.text()
         self.text_size = self.choix_taille.currentText()
 
-        #trouver un moyen de convertir les couleur en numérique automatiquement#
         if self.choix_couleur.currentText() == 'Noir':
             self.text_color = (0,0,0)
         elif self.choix_couleur.currentText() == 'Blanc':
