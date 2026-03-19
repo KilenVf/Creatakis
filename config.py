@@ -13,13 +13,15 @@ nom_chemin = None
 
 # MAIN_WINDOW
 
-media=''
+media= {}
 video=None
-file_path=None
+file_path= {}
 text=None
 save_file_path = None
 nom_fichier = None
 audio = None
+current_index = None
+current_path = None
 
 # TIMELINE
 bloc_media = []

@@ -3,12 +3,12 @@
 # ============================================
 
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
-from config import CODEC, DEFAULT_DURATION, FONT_SIZE
+import config
 
 
 
 def create_clip(video_path, text=None):
-    clip = VideoFileClip(video_path).subclipped(0, DEFAULT_DURATION)
+    clip = VideoFileClip(video_path).subclipped(0, config.DEFAULT_DURATION)
     
     if text:
         return CompositeVideoClip([clip, text])
@@ -17,4 +17,4 @@ def create_clip(video_path, text=None):
 
 
 def export_video(video, name):
-    video.write_videofile(name + CODEC)
+    video.write_videofile(name + config.CODEC) 

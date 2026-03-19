@@ -26,6 +26,7 @@ from pathlib import Path
 
 
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -53,7 +54,7 @@ class MainWindow(QMainWindow):
         fichier.addAction("Ouvrir", self.load)
         fichier.addAction("Enregistrer")
         fichier.addAction("Enregistrer sous", self.sauvegarder)
-        fichier.addAction("Importer media", self.importer_media)
+        fichier.addAction("Importer media", self.add_media_toGlobal)
         fichier.addAction("Exporter media", self.exporter_media)
         fichier.addAction("Quitter", self.quitter)
 
@@ -152,7 +153,7 @@ class MainWindow(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.display_frame)
 
-    def importer_media(self):
+    def add_media_toGlobal(self):
         from media_editor import create_clip
         config.file_path, config.nom_fichier = import_video()
         if  config.file_path:
@@ -315,6 +316,9 @@ class MainWindow(QMainWindow):
         return
 
     def showtoolbox(self):
-
         self.toolbox.show()
         self.toolbox.raise_()
+        print('ToolBox ok')
+
+    def dragEnterEvent(self, event):
+        print("MAIN drag ok")

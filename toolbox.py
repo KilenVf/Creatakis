@@ -7,12 +7,14 @@ from typing import Dict, Any
 
 from PyQt5.QtWidgets import (
     QDockWidget, QWidget, QLabel, QPushButton, QSlider, QColorDialog,
-    QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGridLayout, QSizePolicy, QTreeWidget, QHeaderView, QTreeWidgetItem
+    QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGridLayout, QSizePolicy, QTreeWidget, QHeaderView, QTreeWidgetItem, QAbstractItemView, QMenu, QAction
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
 
-from config import focus_boutons
+import config
+
+path = None
 
 
 class ToolboxDock(QDockWidget):
@@ -21,7 +23,7 @@ class ToolboxDock(QDockWidget):
         super().__init__("Toolbox", parent)
 
     #enlever le focus des boutons
-        focus_boutons(self)
+        config.focus_boutons(self)
 
     # définitions des widgets d'effets
         self.btn_add_text = QPushButton('Ajouter texte')
@@ -29,7 +31,7 @@ class ToolboxDock(QDockWidget):
 
     #définitions de la zone d'import avec Qtreewidget
 
-        self.tree = QTreeWidget()
+        self.tree = DropTree()
         self.tree.setColumnCount(3)
         self.tree.setHeaderLabels(['Nom','Type','Taille'])
         self.tree.header().setVisible(True)
@@ -43,15 +45,7 @@ class ToolboxDock(QDockWidget):
         #tri par clic
         self.tree.setSortingEnabled(True)
         self.tree.sortByColumn(0, Qt.SortOrder.AscendingOrder)
-
-        #ajouter des item
-
-        self.item_top = QTreeWidgetItem(self.tree)
-        self.item_top.setText(0, 'Dossier Projet')
-        self.item_top.setText(1, 'dossier')
-        self.item_top.setText(2, '__')
-
-
+        
         self.container = QWidget(self)
 
     # layouts
@@ -65,6 +59,7 @@ class ToolboxDock(QDockWidget):
         self.zone_effets.setStyleSheet('background: grey;')
 
         self.layout_import.addWidget(self.tree)
+        
         
         self.layout_effets.addWidget(self.btn_add_text)
         self.layout_effets.addWidget(self.btn_remove_text)
@@ -84,3 +79,92 @@ class ToolboxDock(QDockWidget):
 
     
 
+class DropTree(QTreeWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.DropOnly)
+        self.setContextMenuPolicy(Qt.DefaultContextMenu)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+
+            self.ajouter_medias(path)
+
+            print(path)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+
+    def ajouter_medias(self, path):
+
+        fichier = Path(path)
+        taille = fichier.stat().st_size
+        self.item_top = QTreeWidgetItem(self)
+        self.item_top.setText(0, str(fichier.stem))
+        self.item_top.setText(1, str(fichier.suffix))
+        self.item_top.setText(2, str(taille))
+
+        if config.file_path == {}:
+            id_media = 1
+        else:
+             id_media = list(config.file_path)[-1] + 1
+        config.file_path[str(id_media)] = str(path)
+        print(config.file_path)
+
+        self.item_top.setData(0, Qt.UserRole, id_media)
+        self.item_top.setData(0, Qt.UserRole + 1, path)
+
+        return id_media
+    
+    def index_selectionner(self, path):
+        item = self.currentItem()
+        if item is None:
+            config.current_index = None
+            config.current_path = None
+
+        else:
+            config.current_index = item.data(0, Qt.UserRole)
+            config.current_path = item.data(0, Qt.UserRole + 1)
+            return config.file_path.get(str(config.current_index))
+        
+    def contextMenuEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item is None:
+            return
+        self.setCurrentItem(item)
+        self.index_selectionner(None)
+
+        menu = QMenu(self)
+        ajouter_sequence = QAction('Ajouter à la séquence', self)
+        supprimer = QAction('Supprimer', self)
+        ajouter_sequence.triggered.connect(self._ajouter_a_sequence)
+        supprimer.triggered.connect(self._supprimer_selection)
+        menu.addAction(ajouter_sequence)
+        menu.addAction(supprimer)
+        menu.exec_(event.globalPos())
+
+    def _ajouter_a_sequence(self):
+        # TODO: brancher à la timeline plus tard
+        print(f"Ajouter à la séquence: {config.current_index} -> {config.current_path}")
+
+    def _supprimer_selection(self):
+        # TODO: compléter la suppression (timeline, etc.)
+        item = self.currentItem()
+        if item is None:
+            return
+        id_media = item.data(0, Qt.UserRole)
+        if id_media is not None:
+            config.file_path.pop(str(id_media), None)
+        index = self.indexOfTopLevelItem(item)
+        if index >= 0:
+            self.takeTopLevelItem(index)
+
+    
