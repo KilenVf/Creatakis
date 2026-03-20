@@ -4,7 +4,7 @@
 
 from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
                              QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
-                             QGridLayout)
+                             QGridLayout, QProgressDialog, QApplication)
 from PyQt5.QtCore import Qt, QTimer, QEvent
 from PyQt5.QtGui import QIcon, QImage, QPixmap
 import cv2
@@ -12,7 +12,7 @@ import numpy as np
 
 from utils import import_video, save_as_path
 from dialogs import txt_contentWindow, txt_videotitle
-from save_manager import save_, load_save_data, update_datas
+from save_manager import save_, load_project_data, load_project_data_from_path
 from timeline import Timeline
 import config
 
@@ -21,6 +21,7 @@ from toolbox import ToolboxDock
 import sys
 import json
 import os
+import glob
 from pathlib import Path
 
 
@@ -154,6 +155,7 @@ class MainWindow(QMainWindow):
         self.text_size = 1
         self.text_thickness = 2
         config.total_frames = 0
+        self.export_font_path = None
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.display_frame)
@@ -161,6 +163,8 @@ class MainWindow(QMainWindow):
         self.media_playlist = []
         self.media_offsets = []
         self.current_media_index = -1
+        self.current_media_in = None
+        self.current_media_out = None
 
     def _sync_playlist_from_timeline(self):
         if not self.timeline.tracks:
@@ -174,10 +178,12 @@ class MainWindow(QMainWindow):
             frames = int(clip.duration)
             if frames <= 0:
                 continue
+            in_frame = int(getattr(clip, "source_in", 0))
             config.clips[str(idx)] = {
                 "path": clip.file_path,
                 "fps": fps,
                 "frames": frames,
+                "in_frame": in_frame,
             }
             idx += 1
         self._rebuild_media_playlist()
@@ -209,6 +215,8 @@ class MainWindow(QMainWindow):
 
         clip_info = self.media_playlist[index]
         path = clip_info.get("path")
+        in_frame = int(clip_info.get("in_frame") or 0)
+        frames = int(clip_info.get("frames") or 0)
         if not path:
             return False
 
@@ -221,9 +229,14 @@ class MainWindow(QMainWindow):
             return False
 
         self.current_media_index = index
+        self.current_media_in = in_frame
+        self.current_media_out = in_frame + frames if frames else None
         fps = clip_info.get("fps") or self.cap.get(cv2.CAP_PROP_FPS)
         self.fps = fps if fps and fps > 0 else 30
         self.frame_interval = int(1000 / self.fps) if self.fps > 0 else 33
+
+        if in_frame:
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, in_frame)
 
         if self.timeline_fps is None:
             self.timeline_fps = self.fps
@@ -278,6 +291,7 @@ class MainWindow(QMainWindow):
                 "path": str(path),
                 "fps": fps,
                 "frames": frames,
+                "in_frame": 0,
             }
 
             self._rebuild_media_playlist()
@@ -360,6 +374,15 @@ class MainWindow(QMainWindow):
         if self.cap is None or (not self.is_playing and not force):
             return
 
+        if self.current_media_out is not None:
+            pos = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+            if pos >= self.current_media_out:
+                if self._open_media_index(self.current_media_index + 1):
+                    self.timer.start(self.frame_interval)
+                else:
+                    self.stop()
+                    return
+
         ret, frame = self.cap.read()
         if not ret:
             if self._open_media_index(self.current_media_index + 1):
@@ -376,6 +399,13 @@ class MainWindow(QMainWindow):
         label_height = self.video_label.height()
         frame = cv2.resize(frame, (label_width, label_height))
 
+        current_frame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+        if self.current_media_in is not None:
+            current_frame = current_frame - self.current_media_in
+        if 0 <= self.current_media_index < len(self.media_offsets):
+            current_frame += self.media_offsets[self.current_media_index]
+        self._render_text_clips(frame, current_frame)
+
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_rgba = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2RGBA)
         h, w, ch = frame_rgba.shape
@@ -391,10 +421,6 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap.fromImage(qt_image)
         self.video_label.setPixmap(pixmap)
 
-        current_frame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
-        if 0 <= self.current_media_index < len(self.media_offsets):
-            current_frame += self.media_offsets[self.current_media_index]
-        self._render_text_clips(frame, current_frame)
         self.timeline.set_current_frame(current_frame)
 
     def play(self):
@@ -442,7 +468,8 @@ class MainWindow(QMainWindow):
             if not self._open_media_index(index):
                 return
         if self.cap:
-            self.cap.set(cv2.CAP_PROP_POS_FRAMES, local_frame)
+            in_frame = self.current_media_in or 0
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, in_frame + local_frame)
             self.display_frame(force=True)
 
     def add_text_dialog(self):
@@ -471,8 +498,11 @@ class MainWindow(QMainWindow):
                 align="center",
             )
             self.selected_text_clip = clip
+            if clip:
+                clip.preview_size = (self.video_label.width(), self.video_label.height())
 
             print(f"Texte ajoute: {dialog.text_value}")
+            self.display_frame(force=True)
 
     def on_clip_selected(self, clip):
         print(f"Clip selectionne : {clip}")
@@ -497,49 +527,374 @@ class MainWindow(QMainWindow):
             return dialog.text_value
         return None
 
-    def exporter_media(self):
-        if not config.clips:
+    def exporter_media(self, export_name=None):
+        if not self.timeline.tracks:
+            print("No timeline available.")
+            return
+        video_track = self.timeline.tracks[0] if len(self.timeline.tracks) > 0 else None
+        text_track = self.timeline.tracks[1] if len(self.timeline.tracks) > 1 else None
+        if not video_track or not video_track.clips:
             print("No video loaded. Please import a video first.")
             return
-        export_name = self.askMediaOutput()
+        if export_name is None:
+            export_name = self.askMediaOutput()
         if export_name:
-            from moviepy import VideoFileClip, concatenate_videoclips
-            clips = []
-            final = None
+            from moviepy import VideoFileClip, CompositeVideoClip, ColorClip, ImageClip
+            from proglog import ProgressBarLogger
+
+            fps = self.timeline_fps or self.fps or 30
+            total_frames = self.timeline.total_frames
+            if not total_frames:
+                max_end = 0
+                for track in self.timeline.tracks:
+                    for c in track.clips:
+                        max_end = max(max_end, c.end_frame)
+                total_frames = max_end
+            total_duration = total_frames / fps if fps else 0
+
+            base_size = None
+            layers = []
+            opened = []
+
             try:
-                for clip_info in config.clips.values():
-                    path = clip_info.get("path")
-                    if path:
-                        clips.append(VideoFileClip(path))
-                if not clips:
-                    print("Aucun clip valide a exporter.")
-                    return
-                final = concatenate_videoclips(clips, method="compose")
-                return final.write_videofile(export_name + config.CODEC)
+                progress = QProgressDialog("Exportation en cours...", None, 0, 0, self)
+                progress.setWindowTitle("Exportation")
+                progress.setWindowModality(Qt.ApplicationModal)
+                progress.setCancelButton(None)
+                progress.setMinimumDuration(0)
+                progress.setAutoClose(True)
+                progress.show()
+
+                class ExportLogger(ProgressBarLogger):
+                    def __init__(self, dialog):
+                        super().__init__()
+                        self.dialog = dialog
+                        self.main_bar = None
+                        self.total = None
+
+                    def bars_callback(self, bar, attr, value, old_value=None):
+                        if bar not in ("frame_index", "chunk"):
+                            return
+                        if self.main_bar is None:
+                            self.main_bar = "frame_index" if bar == "frame_index" else "chunk"
+                        elif self.main_bar == "chunk" and bar == "frame_index":
+                            self.main_bar = "frame_index"
+                            self.total = None
+                            self.dialog.setRange(0, 0)
+                        if bar != self.main_bar:
+                            return
+
+                        if attr == "total":
+                            self.total = int(value) if value is not None else None
+                            if self.total:
+                                self.dialog.setRange(0, self.total)
+                            else:
+                                self.dialog.setRange(0, 0)
+                        elif attr == "index":
+                            if self.total:
+                                self.dialog.setValue(min(int(value), self.total))
+                            else:
+                                self.dialog.setValue(int(value))
+                        QApplication.processEvents()
+
+                logger = ExportLogger(progress)
+
+                for clip in sorted(video_track.clips, key=lambda c: c.start_frame):
+                    if not clip.file_path:
+                        continue
+                    v = VideoFileClip(clip.file_path)
+                    opened.append(v)
+                    if base_size is None:
+                        base_size = v.size
+                    in_frame = int(getattr(clip, "source_in", 0))
+                    start_t = clip.start_frame / fps
+                    duration_t = clip.duration / fps
+                    start_sec = in_frame / fps
+                    end_sec = start_sec + duration_t
+                    if hasattr(v, "subclip"):
+                        v = v.subclip(start_sec, end_sec)
+                    else:
+                        v = v.subclipped(start_sec, end_sec)
+                    if base_size and v.size != base_size:
+                        if hasattr(v, "resize"):
+                            v = v.resize(newsize=base_size)
+                        else:
+                            v = v.resized(new_size=base_size)
+                    if hasattr(v, "set_start"):
+                        v = v.set_start(start_t)
+                    else:
+                        v = v.with_start(start_t)
+                    layers.append(v)
+
+                if base_size is None:
+                    base_size = (1280, 720)
+
+                background = ColorClip(size=base_size, color=(0, 0, 0), duration=total_duration)
+                layers.insert(0, background)
+
+                if text_track:
+                    for clip in text_track.clips:
+                        if not clip.text_content:
+                            continue
+                        start_t = clip.start_frame / fps
+                        duration_t = clip.duration / fps
+
+                        preview_size = (self.video_label.width(), self.video_label.height())
+                        if preview_size[0] <= 0 or preview_size[1] <= 0:
+                            preview_size = getattr(clip, "preview_size", base_size)
+                        overlay = self._build_text_overlay_rgba(clip, base_size, preview_size)
+                        text_clip = ImageClip(overlay)
+                        if hasattr(text_clip, "set_start"):
+                            text_clip = text_clip.set_start(start_t)
+                        else:
+                            text_clip = text_clip.with_start(start_t)
+                        if hasattr(text_clip, "set_duration"):
+                            text_clip = text_clip.set_duration(duration_t)
+                        else:
+                            text_clip = text_clip.with_duration(duration_t)
+                        if hasattr(text_clip, "set_position"):
+                            text_clip = text_clip.set_position((0, 0))
+                        else:
+                            text_clip = text_clip.with_position((0, 0))
+                        layers.append(text_clip)
+
+                final = CompositeVideoClip(layers, size=base_size)
+                if hasattr(final, "set_duration"):
+                    final = final.set_duration(total_duration)
+                else:
+                    final = final.with_duration(total_duration)
+                return final.write_videofile(export_name + config.CODEC, fps=fps, logger=logger)
             finally:
-                for c in clips:
-                    c.close()
-                if final is not None:
-                    final.close()
+                try:
+                    progress.close()
+                except Exception:
+                    pass
+                for v in opened:
+                    try:
+                        v.close()
+                    except Exception:
+                        pass
+
+    def _get_export_font(self, fontsize, ImageFont):
+        if self.export_font_path and os.path.exists(self.export_font_path):
+            try:
+                return ImageFont.truetype(self.export_font_path, fontsize)
+            except Exception:
+                pass
+
+        candidates = [
+            "/usr/share/fonts/google-noto-vf/NotoSansMono[wght].ttf",
+            "/usr/share/fonts/google-noto-vf/NotoSansDevanagari[wght].ttf",
+            "/usr/share/fonts/google-noto-vf/NotoSansArabic[wght].ttf",
+            "/usr/share/fonts/google-noto-vf/NotoSansHebrew[wght].ttf",
+            "/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/abattis-cantarell-fonts/Cantarell-Regular.ttf",
+            "/usr/share/fonts/urw-base35/NimbusSans-Regular.ttf",
+            "/usr/share/fonts/google-noto/NotoSans-Regular.ttf",
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                try:
+                    font = ImageFont.truetype(path, fontsize)
+                    self.export_font_path = path
+                    return font
+                except Exception:
+                    continue
+
+        for path in glob.glob("/usr/share/fonts/**/*.ttf", recursive=True):
+            try:
+                font = ImageFont.truetype(path, fontsize)
+                self.export_font_path = path
+                return font
+            except Exception:
+                continue
+
+        return ImageFont.load_default()
+
+    def _build_text_overlay_rgba(self, clip, base_size, preview_size=None):
+        width, height = base_size
+        if preview_size is None:
+            preview_size = base_size
+        preview_w, preview_h = preview_size
+        if preview_w <= 0 or preview_h <= 0:
+            preview_w, preview_h = base_size
+        overlay = np.zeros((height, width, 4), dtype=np.uint8)
+
+        font_scale = float(clip.size) if clip.size else 1.0
+        scale = height / preview_h if preview_h else 1.0
+        font_scale *= scale
+        thickness = max(1, int(round(self.text_thickness * scale)))
+        color = clip.text_color if clip.text_color else (255, 255, 255)
+        (tw, th), _ = cv2.getTextSize(
+            clip.text_content,
+            self.text_font,
+            font_scale,
+            thickness
+        )
+
+        pos_x, pos_y = clip.position if clip.position else (0.5, 0.5)
+        px = int(pos_x * width)
+        py = int(pos_y * height)
+
+        if clip.align == "left":
+            x = px
+        elif clip.align == "right":
+            x = px - tw
+        else:
+            x = px - (tw // 2)
+
+        y = py + (th // 2)
+        x = max(0, min(x, width - tw))
+        y = max(th, min(y, height - 2))
+
+        mask = np.zeros((height, width), dtype=np.uint8)
+        cv2.putText(
+            mask,
+            clip.text_content,
+            (x, y),
+            self.text_font,
+            font_scale,
+            255,
+            thickness
+        )
+
+        b, g, r = int(color[0]), int(color[1]), int(color[2])
+        idx = mask > 0
+        overlay[idx, 0] = b
+        overlay[idx, 1] = g
+        overlay[idx, 2] = r
+        overlay[idx, 3] = mask[idx]
+        return overlay
 
     def sauvegarder(self):
-        save = save_(config.media, config.video, config.file_path, config.text, config.bloc_media, config.index)
+        project_data = self._build_project_data()
+        save_(project_data=project_data)
         return
 
     def load(self):
-        update = update_datas()
-        if update and config.file_path:
-            self.timeline.clear_all_clips()
-            config.clips = {}
-            self.media_playlist = []
-            self.media_offsets = []
-            self.current_media_index = -1
-            self.cap = None
-            self.timeline_fps = None
-
-            self._add_media_path(config.file_path)
-
+        data = load_project_data()
+        if not data:
+            return
+        self._apply_project_data(data)
         return
+
+    def load_from_path(self, path):
+        data = load_project_data_from_path(path)
+        if not data:
+            return
+        self._apply_project_data(data)
+        return
+
+    def _apply_project_data(self, data):
+        self.timeline.clear_all_clips()
+        config.clips = {}
+        self.media_playlist = []
+        self.media_offsets = []
+        self.current_media_index = -1
+        self.cap = None
+        self.timeline_fps = None
+        self.current_media_in = None
+        self.current_media_out = None
+
+        # toolbox
+        paths = data.get("toolbox", {}).get("paths", [])
+        if hasattr(self.toolbox, "tree"):
+            self.toolbox.tree.clear()
+        config.media_library_paths = {}
+        for path in paths:
+            if hasattr(self.toolbox, "tree"):
+                self.toolbox.tree.ajouter_medias(path)
+
+        # timeline
+        timeline_data = data.get("timeline", {})
+        fps = timeline_data.get("fps", 30)
+        self.timeline_fps = fps
+        self.timeline.set_fps(fps)
+        zoom = timeline_data.get("zoom")
+        if zoom:
+            self.timeline.set_zoom(zoom)
+
+        for v in timeline_data.get("video_clips", []):
+            path = v.get("path")
+            start = int(v.get("start_frame", 0))
+            end = int(v.get("end_frame", start))
+            duration = max(1, end - start)
+            if path:
+                clip = self.timeline.add_video_clip(path, start, duration)
+                if clip:
+                    clip.source_in = int(v.get("source_in", 0))
+
+        for t in timeline_data.get("text_clips", []):
+            content = t.get("content", "")
+            start = int(t.get("start_frame", 0))
+            end = int(t.get("end_frame", start))
+            duration = max(1, end - start)
+            color = t.get("color", [255, 255, 255])
+            size = t.get("size", 1.0)
+            position = t.get("position", [0.5, 0.5])
+            align = t.get("align", "center")
+            if content:
+                self.timeline.add_text_clip(
+                    text_content=content,
+                    start_frame=start,
+                    duration_frames=duration,
+                    text_color=tuple(color),
+                    text_size=float(size),
+                    position=tuple(position),
+                    align=align,
+                )
+
+        self._sync_playlist_from_timeline()
+        current_frame = int(timeline_data.get("current_frame", 0))
+        if config.total_frames and config.total_frames > 0:
+            current_frame = min(current_frame, config.total_frames - 1)
+            self.seek_video(current_frame)
+        else:
+            self.timeline.set_current_frame(current_frame)
+
+    def _build_project_data(self):
+        video_clips = []
+        text_clips = []
+        if self.timeline.tracks:
+            video_track = self.timeline.tracks[0]
+            text_track = self.timeline.tracks[1] if len(self.timeline.tracks) > 1 else None
+            for clip in video_track.clips:
+                video_clips.append({
+                    "path": clip.file_path,
+                    "start_frame": clip.start_frame,
+                    "end_frame": clip.end_frame,
+                    "source_in": int(getattr(clip, "source_in", 0)),
+                })
+            if text_track:
+                for clip in text_track.clips:
+                    text_clips.append({
+                        "content": clip.text_content,
+                        "start_frame": clip.start_frame,
+                        "end_frame": clip.end_frame,
+                        "color": list(clip.text_color) if clip.text_color else [255, 255, 255],
+                        "size": clip.size,
+                        "position": list(clip.position) if clip.position else [0.5, 0.5],
+                        "align": clip.align if clip.align else "center",
+                    })
+
+        return {
+            "project_version": 1,
+            "settings": {
+                "codec": config.CODEC,
+                "default_duration": config.DEFAULT_DURATION,
+                "default_font_size": config.FONT_SIZE,
+            },
+            "toolbox": {
+                "paths": list(config.media_library_paths.values()),
+            },
+            "timeline": {
+                "fps": self.timeline_fps or self.timeline.fps,
+                "zoom": self.timeline.zoom,
+                "current_frame": self.timeline.playhead.current_frame,
+                "video_clips": video_clips,
+                "text_clips": text_clips,
+            }
+        }
 
     def _render_text_clips(self, frame, current_frame):
         if not self.timeline.tracks or len(self.timeline.tracks) < 2:
@@ -599,7 +954,25 @@ class MainWindow(QMainWindow):
         return super().eventFilter(obj, event)
 
     def quitter(self):
-        return
+        self.close()
+
+    def closeEvent(self, event):
+        self._cleanup_resources()
+        event.accept()
+
+    def _cleanup_resources(self):
+        try:
+            self.is_playing = False
+            if self.timer.isActive():
+                self.timer.stop()
+        except Exception:
+            pass
+        try:
+            if self.cap:
+                self.cap.release()
+        except Exception:
+            pass
+        self.cap = None
 
     def showtoolbox(self):
         self.toolbox.show()

@@ -36,6 +36,9 @@ class ClipItem(QWidget):
         self.clip = clip
         self.is_selected = False
         self.drag_start_x = 0 
+        self.is_resizing = False
+        self.was_moved = False
+        self.resize_margin = 6
         self.setMinimumHeight(40)
         self.setCursor(Qt.PointingHandCursor)
 
@@ -61,19 +64,43 @@ class ClipItem(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            if event.x() >= self.width() - self.resize_margin:
+                self.is_resizing = True
+            else:
+                self.is_resizing = False
             self.drag_start_x = event.x()
+            self.was_moved = False
             self.clicked.emit(self)
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton:
-            delta_x = event.x() - self.drag_start_x
-            new_x = self.x() + delta_x
-            new_start = int(new_x / self.parent().pixels_per_frame)
-            new_start = max(0, new_start)
-            duration = self.clip.duration
-            self.clip.start_frame = new_start
-            self.clip.end_frame = new_start + duration
-            self.parent()._update_clips()
+            if self.is_resizing:
+                local_x = max(1, event.x())
+                new_end = int((self.x() + local_x) / self.parent().pixels_per_frame)
+                if new_end <= self.clip.start_frame:
+                    new_end = self.clip.start_frame + 1
+                self.clip.end_frame = new_end
+                self.parent()._update_clips()
+            else:
+                delta_x = event.x() - self.drag_start_x
+                if delta_x != 0:
+                    self.was_moved = True
+                new_x = self.x() + delta_x
+                new_start = int(new_x / self.parent().pixels_per_frame)
+                new_start = max(0, new_start)
+                duration = self.clip.duration
+                self.clip.start_frame = new_start
+                self.clip.end_frame = new_start + duration
+                self.parent()._update_clips()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if self.is_resizing or self.was_moved:
+                timeline = self.parent()._get_timeline()
+                if timeline:
+                    timeline.clipsChanged.emit()
+            self.is_resizing = False
+            self.was_moved = False
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
@@ -120,6 +147,8 @@ class ClipItem(QWidget):
                 new_clip.align = self.clip.align
                 new_clip.background_color = self.clip.background_color
                 new_clip.stroke = self.clip.stroke
+            if hasattr(self.clip, "source_in"):
+                new_clip.source_in = self.clip.source_in
             track.add_clip(new_clip)
             timeline = track._get_timeline()
             if timeline:
@@ -419,8 +448,10 @@ class Timeline(QWidget):
 
     def add_video_clip(self, file_path, start_frame, duration_frames):
         clip = Clip("video", start_frame, start_frame + duration_frames, file_path=file_path, color=(100, 150, 255))
+        clip.source_in = 0
         self.tracks[0].add_clip(clip)
         print(f"Clip video ajoute : frames {start_frame} -> {start_frame + duration_frames}")
+        return clip
 
     def add_text_clip(self, text_content, start_frame, duration_frames, text_color=None, text_size=1.0, position=(0.5, 0.5), align="center"):
         clip = Clip("text", start_frame, start_frame + duration_frames, text_content=text_content, color=(255, 150, 100))
