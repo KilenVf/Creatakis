@@ -27,6 +27,9 @@ class ToolboxDock(QDockWidget):
 
     # définitions des widgets d'effets
         self.btn_add_text = QPushButton('Ajouter texte')
+        self.btn_cut_tool = QPushButton('Outil coupe')
+        self.btn_cut_tool.setCheckable(True)
+        self.btn_cut_tool.setToolTip("Couper un clip (outil lame)")
         self.btn_remove_text = QPushButton('Supprimer texte')
 
     #définitions de la zone d'import avec Qtreewidget
@@ -62,6 +65,7 @@ class ToolboxDock(QDockWidget):
         
         
         self.layout_effets.addWidget(self.btn_add_text)
+        self.layout_effets.addWidget(self.btn_cut_tool)
         self.layout_effets.addWidget(self.btn_remove_text)
         self.layout_effets.addWidget(self.zone_effets)
         

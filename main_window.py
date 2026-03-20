@@ -94,12 +94,17 @@ class MainWindow(QMainWindow):
         self.btn_pause.setStyleSheet('background-color: grey;')
         self.btn_stop.setStyleSheet('background-color: grey;')
         self.toolbox.btn_add_text.setStyleSheet('background-color: grey;')
+        self.toolbox.btn_cut_tool.setStyleSheet(
+            "QPushButton { background-color: grey; }"
+            "QPushButton:checked { background-color: #d08a2b; color: black; }"
+        )
         self.toolbox.btn_remove_text.setStyleSheet('background-color: grey;')
 
         self.btn_play.clicked.connect(self.play)
         self.btn_pause.clicked.connect(self.pause)
         self.btn_stop.clicked.connect(self.stop)
         self.toolbox.btn_add_text.clicked.connect(self.add_text_dialog)
+        self.toolbox.btn_cut_tool.toggled.connect(self.on_cut_tool_toggled)
         self.toolbox.btn_remove_text.clicked.connect(self.remove_text)
 
         self.volume_slider = QSlider(Qt.Horizontal)
@@ -520,6 +525,10 @@ class MainWindow(QMainWindow):
             print("Texte supprime")
         else:
             print("Aucun texte selectionne")
+
+    def on_cut_tool_toggled(self, checked):
+        if hasattr(self, "timeline"):
+            self.timeline.set_tool("cut" if checked else "select")
 
     def askMediaOutput(self):
         dialog = txt_videotitle()

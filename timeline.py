@@ -62,8 +62,24 @@ class ClipItem(QWidget):
             label = self.clip.text_content[:10] + "..."
         painter.drawText(self.rect(), Qt.AlignCenter, label)
 
+    def _is_cut_tool_active(self):
+        timeline = self.parent()._get_timeline()
+        return bool(timeline and getattr(timeline, "current_tool", "select") == "cut")
+
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            if self._is_cut_tool_active():
+                timeline = self.parent()._get_timeline()
+                if timeline:
+                    local_x = max(0, min(event.x(), self.width()))
+                    pixels_per_frame = max(0.1, float(self.parent().pixels_per_frame))
+                    cut_frame = self.clip.start_frame + int(local_x / pixels_per_frame)
+                    timeline.split_clip_at_frame(self.clip, cut_frame)
+                self.is_resizing = False
+                self.was_moved = False
+                self.drag_start_x = 0
+                event.accept()
+                return
             if event.x() >= self.width() - self.resize_margin:
                 self.is_resizing = True
             else:
@@ -73,6 +89,8 @@ class ClipItem(QWidget):
             self.clicked.emit(self)
 
     def mouseMoveEvent(self, event):
+        if self._is_cut_tool_active():
+            return
         if event.buttons() == Qt.LeftButton:
             if self.is_resizing:
                 local_x = max(1, event.x())
@@ -94,6 +112,8 @@ class ClipItem(QWidget):
                 self.parent()._update_clips()
 
     def mouseReleaseEvent(self, event):
+        if self._is_cut_tool_active():
+            return
         if event.button() == Qt.LeftButton:
             if self.is_resizing or self.was_moved:
                 timeline = self.parent()._get_timeline()
@@ -190,12 +210,35 @@ class TrackWidget(QWidget):
         self.setStyleSheet(f"background-color: rgb{track_color.getRgb()[:3]};")
         self.setAcceptDrops(True)
 
+    def _cursor_for_tool(self, tool):
+        return Qt.SplitVCursor if tool == "cut" else Qt.PointingHandCursor
+
+    def _apply_tool_cursor(self, item):
+        timeline = self._get_timeline()
+        tool = getattr(timeline, "current_tool", "select") if timeline else "select"
+        item.setCursor(self._cursor_for_tool(tool))
+
     def add_clip(self, clip):
         self.clips.append(clip)
         item = ClipItem(clip, self)
         item.clicked.connect(self._on_clip_clicked)
         self.clip_items.append(item)
+        self._apply_tool_cursor(item)
         self._update_clips()
+
+    def insert_clip(self, index, clip):
+        self.clips.insert(index, clip)
+        item = ClipItem(clip, self)
+        item.clicked.connect(self._on_clip_clicked)
+        self.clip_items.insert(index, item)
+        self._apply_tool_cursor(item)
+        self._update_clips()
+
+    def set_tool_cursor(self, tool):
+        cursor = self._cursor_for_tool(tool)
+        self.setCursor(cursor)
+        for item in self.clip_items:
+            item.setCursor(cursor)
 
     def _on_clip_clicked(self, item):
         for clip_item in self.clip_items:
@@ -393,6 +436,7 @@ class Timeline(QWidget):
         self.total_frames = 0
         self.zoom = 1.0
         self.tracks = []
+        self.current_tool = "select"
         self.setFocusPolicy(Qt.StrongFocus)
 
         main_layout = QVBoxLayout()
@@ -432,6 +476,7 @@ class Timeline(QWidget):
         self.setLayout(main_layout)
         self.setMinimumHeight(200)
         self._create_default_tracks()
+        self.set_tool(self.current_tool)
 
     def _create_default_tracks(self):
         video_track = TrackWidget("VIDEO", QColor(50, 50, 70), self)
@@ -445,6 +490,62 @@ class Timeline(QWidget):
         self.tracks_layout.addWidget(text_track)
 
         print("Pistes crees : VIDEO + TEXT")
+
+    def set_tool(self, tool):
+        self.current_tool = tool or "select"
+        for track in self.tracks:
+            track.set_tool_cursor(self.current_tool)
+
+    def _copy_clip_style(self, source, target):
+        for attr in ("font", "size", "text_color", "position", "align", "background_color", "stroke"):
+            if hasattr(source, attr):
+                setattr(target, attr, getattr(source, attr))
+        if hasattr(source, "preview_size"):
+            target.preview_size = source.preview_size
+
+    def _find_track_for_clip(self, clip):
+        for track in self.tracks:
+            if clip in track.clips:
+                return track
+        return None
+
+    def split_clip_at_frame(self, clip, frame):
+        if not clip:
+            return None
+        if frame <= clip.start_frame or frame >= clip.end_frame:
+            return None
+        track = self._find_track_for_clip(clip)
+        if not track:
+            return None
+
+        original_start = clip.start_frame
+        original_end = clip.end_frame
+        left_duration = frame - original_start
+        right_duration = original_end - frame
+        if left_duration <= 0 or right_duration <= 0:
+            return None
+
+        clip.end_frame = frame
+        new_clip = Clip(
+            clip_type=clip.clip_type,
+            start_frame=frame,
+            end_frame=original_end,
+            file_path=clip.file_path,
+            text_content=clip.text_content,
+            color=clip.color
+        )
+        self._copy_clip_style(clip, new_clip)
+        if hasattr(clip, "source_in"):
+            base_in = getattr(clip, "source_in", 0)
+            try:
+                base_in = int(base_in)
+            except Exception:
+                pass
+            new_clip.source_in = base_in + left_duration
+
+        track.insert_clip(track.clips.index(clip) + 1, new_clip)
+        self.clipsChanged.emit()
+        return new_clip
 
     def add_video_clip(self, file_path, start_frame, duration_frames):
         clip = Clip("video", start_frame, start_frame + duration_frames, file_path=file_path, color=(100, 150, 255))
