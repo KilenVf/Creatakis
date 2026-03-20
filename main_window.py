@@ -77,6 +77,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         # ===== VIDEO PLAYER OpenCV =====
+        self.selected_text_clip = None
+        self.dragging_text = False
+
         self.video_label = QLabel()
         self.video_label.setMinimumSize(640, 360)
         self.video_label.setStyleSheet("background-color: black;")
@@ -150,8 +153,6 @@ class MainWindow(QMainWindow):
         self.text_font = cv2.FONT_HERSHEY_SIMPLEX
         self.text_size = 1
         self.text_thickness = 2
-        self.selected_text_clip = None
-        self.dragging_text = False
         config.total_frames = 0
 
         self.timer = QTimer()
@@ -584,15 +585,15 @@ class MainWindow(QMainWindow):
         self.display_frame(force=True)
 
     def eventFilter(self, obj, event):
-        if obj == self.video_label and self.selected_text_clip:
+        if obj == self.video_label and getattr(self, "selected_text_clip", None):
             if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
                 self.dragging_text = True
                 self._update_selected_text_position(event.pos())
                 return True
-            if event.type() == QEvent.MouseMove and self.dragging_text and (event.buttons() & Qt.LeftButton):
+            if event.type() == QEvent.MouseMove and getattr(self, "dragging_text", False) and (event.buttons() & Qt.LeftButton):
                 self._update_selected_text_position(event.pos())
                 return True
-            if event.type() == QEvent.MouseButtonRelease and self.dragging_text:
+            if event.type() == QEvent.MouseButtonRelease and getattr(self, "dragging_text", False):
                 self.dragging_text = False
                 return True
         return super().eventFilter(obj, event)
