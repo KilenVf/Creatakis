@@ -21,7 +21,7 @@ def save_(media, video, file_path, text, bloc_media, index):
         'medias' : {
             'media': str(media),
             'video': str(video),
-            'file_path': str(file_path)
+            'file_path': file_path
         },
 
         'effects' : {
@@ -55,12 +55,15 @@ def update_datas():
     timeline_data = data.get('timeline_data', {})
 
     config.media = medias.get('media', '')
-    config.file_path = medias.get('file_path')  # le chemin suffit, on recharge le clip après
+    file_path = medias.get('file_path')
+    if file_path in (None, "", "None"):
+        config.file_path = None
+    else:
+        config.file_path = file_path  # le chemin suffit, on recharge le clip après
     config.text = effects.get('text')
     config.index = int(timeline_data.get('index', -1))
     
     return True
 
         
-
 

@@ -83,12 +83,22 @@ class ClipItem(QWidget):
         duplicate_action = QAction("Dupliquer", self)
         duplicate_action.triggered.connect(self._duplicate_clip)
         menu.addAction(duplicate_action)
+        if self.clip.clip_type == "text":
+            shorten_action = QAction("Raccourcir 1s", self)
+            shorten_action.triggered.connect(self._shorten_text)
+            menu.addAction(shorten_action)
+            lengthen_action = QAction("Allonger 1s", self)
+            lengthen_action.triggered.connect(self._lengthen_text)
+            menu.addAction(lengthen_action)
         menu.exec_(event.globalPos())
 
     def _delete_clip(self):
         track = self.parent()
         if track:
             track.remove_clip(self.clip)
+            timeline = track._get_timeline()
+            if timeline:
+                timeline.clipsChanged.emit()
 
     def _duplicate_clip(self):
         track = self.parent()
@@ -111,6 +121,30 @@ class ClipItem(QWidget):
                 new_clip.background_color = self.clip.background_color
                 new_clip.stroke = self.clip.stroke
             track.add_clip(new_clip)
+            timeline = track._get_timeline()
+            if timeline:
+                timeline.clipsChanged.emit()
+
+    def _shorten_text(self):
+        self._adjust_text_duration(delta_seconds=-1)
+
+    def _lengthen_text(self):
+        self._adjust_text_duration(delta_seconds=1)
+
+    def _adjust_text_duration(self, delta_seconds):
+        if self.clip.clip_type != "text":
+            return
+        track = self.parent()
+        if not track:
+            return
+        timeline = track._get_timeline()
+        fps = timeline.fps if timeline and timeline.fps else 30
+        delta_frames = int(max(1, round(delta_seconds * fps)))
+        new_end = self.clip.end_frame + delta_frames
+        if new_end <= self.clip.start_frame:
+            new_end = self.clip.start_frame + 1
+        self.clip.end_frame = new_end
+        track._update_clips()
 
 class TrackWidget(QWidget):
     clipSelected = pyqtSignal(object)
@@ -125,6 +159,7 @@ class TrackWidget(QWidget):
         self.pixels_per_frame = 2.0
         self.setMinimumHeight(60)
         self.setStyleSheet(f"background-color: rgb{track_color.getRgb()[:3]};")
+        self.setAcceptDrops(True)
 
     def add_clip(self, clip):
         self.clips.append(clip)
@@ -154,6 +189,14 @@ class TrackWidget(QWidget):
         if self.selected_clip:
             self.remove_clip(self.selected_clip)
             self.selected_clip = None
+    
+    def clear(self):
+        for item in self.clip_items:
+            item.deleteLater()
+        self.clips = []
+        self.clip_items = []
+        self.selected_clip = None
+        self._update_clips()
 
     def set_zoom(self, zoom):
         self.pixels_per_frame = 2.0 * zoom
@@ -185,6 +228,26 @@ class TrackWidget(QWidget):
                 return parent
             parent = parent.parent()
         return None
+
+    def dragEnterEvent(self, event):
+        if self.track_name == "VIDEO" and event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        if self.track_name == "VIDEO" and event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        if self.track_name != "VIDEO" or not event.mimeData().hasUrls():
+            return
+        timeline = self._get_timeline()
+        if not timeline:
+            return
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path:
+                timeline.mediaDropped.emit(path)
+        event.acceptProposedAction()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -292,6 +355,8 @@ class Playhead(QWidget):
 class Timeline(QWidget):
     positionChanged = pyqtSignal(int)
     clipSelected = pyqtSignal(object)
+    clipsChanged = pyqtSignal()
+    mediaDropped = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -357,15 +422,26 @@ class Timeline(QWidget):
         self.tracks[0].add_clip(clip)
         print(f"Clip video ajoute : frames {start_frame} -> {start_frame + duration_frames}")
 
-    def add_text_clip(self, text_content, start_frame, duration_frames):
+    def add_text_clip(self, text_content, start_frame, duration_frames, text_color=None, text_size=1.0, position=(0.5, 0.5), align="center"):
         clip = Clip("text", start_frame, start_frame + duration_frames, text_content=text_content, color=(255, 150, 100))
+        clip.text_color = text_color if text_color is not None else clip.text_color
+        clip.size = text_size if text_size is not None else clip.size
+        clip.position = position if position is not None else clip.position
+        clip.align = align if align is not None else clip.align
         self.tracks[1].add_clip(clip)
         print(f"Clip texte ajoute : '{text_content}' frames {start_frame} -> {start_frame + duration_frames}")
+        return clip
 
     def remove_selected_clip(self):
         for track in self.tracks:
             track.remove_selected_clip()
         print("Clip selectionne supprime")
+
+    def clear_all_clips(self):
+        for track in self.tracks:
+            track.clear()
+        self.set_current_frame(0)
+        self.set_total_frames(0)
 
     def set_zoom(self, zoom):
         self.zoom = max(0.1, min(zoom, 5.0))
@@ -381,14 +457,20 @@ class Timeline(QWidget):
 
     def set_total_frames(self, total):
         self.total_frames = total
+        if total:
+            width = int(total * self.time_ruler.pixels_per_frame) + 100
+            self._sync_widths(width)
 
     def set_current_frame(self, frame):
         self.playhead.set_current_frame(frame)
 
     def _sync_widths(self, width):
-        self.time_ruler.setMinimumWidth(width)
-        self.tracks_container.setMinimumWidth(width)
-        self.scroll_container.setMinimumWidth(width) 
+        min_width = width
+        if self.total_frames:
+            min_width = max(min_width, int(self.total_frames * self.time_ruler.pixels_per_frame) + 100)
+        self.time_ruler.setMinimumWidth(min_width)
+        self.tracks_container.setMinimumWidth(min_width)
+        self.scroll_container.setMinimumWidth(min_width)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

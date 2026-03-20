@@ -15,13 +15,18 @@ nom_chemin = None
 
 media= {}
 video=None
-file_path= {}
+# Chemin du media actuellement importé (string) pour la lecture principale
+file_path= None
+# Bibliothèque de médias (drag & drop toolbox)
+media_library_paths = {}
 text=None
 save_file_path = None
 nom_fichier = None
 audio = None
 current_index = None
 current_path = None
+clips = {}
+total_frames = None
 
 # TIMELINE
 bloc_media = []

@@ -8,7 +8,7 @@ import config
 
 
 def create_clip(video_path, text=None):
-    clip = VideoFileClip(video_path).subclipped(0, config.DEFAULT_DURATION)
+    clip = VideoFileClip(video_path)
     
     if text:
         return CompositeVideoClip([clip, text])
@@ -17,4 +17,4 @@ def create_clip(video_path, text=None):
 
 
 def export_video(video, name):
-    video.write_videofile(name + config.CODEC) 
+   video.write_videofile(name + config.CODEC)

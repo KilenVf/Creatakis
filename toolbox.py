@@ -9,8 +9,8 @@ from PyQt5.QtWidgets import (
     QDockWidget, QWidget, QLabel, QPushButton, QSlider, QColorDialog,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QGridLayout, QSizePolicy, QTreeWidget, QHeaderView, QTreeWidgetItem, QAbstractItemView, QMenu, QAction
 )
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtCore import Qt, pyqtSignal, QMimeData, QUrl
+from PyQt5.QtGui import QColor, QFont, QDrag
 
 import config
 
@@ -75,6 +75,8 @@ class ToolboxDock(QDockWidget):
 
     def set_controller(self, controller: object):
         self.controller = controller
+        if hasattr(self, "tree"):
+            self.tree.controller = controller
 
 
     
@@ -83,8 +85,10 @@ class DropTree(QTreeWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self.setDragDropMode(QAbstractItemView.DropOnly)
+        self.setDragDropMode(QAbstractItemView.DragDrop)
+        self.setDragEnabled(True)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
+        self.controller = None
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -97,10 +101,26 @@ class DropTree(QTreeWidget):
             self.ajouter_medias(path)
 
             print(path)
+        event.acceptProposedAction()
 
     def dragMoveEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+
+    def startDrag(self, supportedActions):
+        item = self.currentItem()
+        if item is None:
+            return
+        path = item.data(0, Qt.UserRole + 1)
+        if not path:
+            return
+
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(path)])
+
+        drag = QDrag(self)
+        drag.setMimeData(mime)
+        drag.exec_(Qt.CopyAction)
 
 
     def ajouter_medias(self, path):
@@ -112,12 +132,15 @@ class DropTree(QTreeWidget):
         self.item_top.setText(1, str(fichier.suffix))
         self.item_top.setText(2, str(taille))
 
-        if config.file_path == {}:
+        if not config.media_library_paths:
             id_media = 1
         else:
-             id_media = list(config.file_path)[-1] + 1
-        config.file_path[str(id_media)] = str(path)
-        print(config.file_path)
+            try:
+                id_media = max(int(k) for k in config.media_library_paths.keys()) + 1
+            except (ValueError, TypeError):
+                id_media = len(config.media_library_paths) + 1
+        config.media_library_paths[str(id_media)] = str(path)
+        print(config.media_library_paths)
 
         self.item_top.setData(0, Qt.UserRole, id_media)
         self.item_top.setData(0, Qt.UserRole + 1, path)
@@ -133,7 +156,7 @@ class DropTree(QTreeWidget):
         else:
             config.current_index = item.data(0, Qt.UserRole)
             config.current_path = item.data(0, Qt.UserRole + 1)
-            return config.file_path.get(str(config.current_index))
+            return config.media_library_paths.get(str(config.current_index))
         
     def contextMenuEvent(self, event):
         item = self.itemAt(event.pos())
@@ -151,18 +174,22 @@ class DropTree(QTreeWidget):
         menu.addAction(supprimer)
         menu.exec_(event.globalPos())
 
+
+
     def _ajouter_a_sequence(self):
-        # TODO: brancher à la timeline plus tard
+        #relier avec import global de main window
         print(f"Ajouter à la séquence: {config.current_index} -> {config.current_path}")
+        if self.controller and config.current_path:
+            self.controller.add_media_from_path(config.current_path)
 
     def _supprimer_selection(self):
-        # TODO: compléter la suppression (timeline, etc.)
+        # supprimer le media de la timeline + ne plus l'afficher
         item = self.currentItem()
         if item is None:
             return
         id_media = item.data(0, Qt.UserRole)
         if id_media is not None:
-            config.file_path.pop(str(id_media), None)
+            config.media_library_paths.pop(str(id_media), None)
         index = self.indexOfTopLevelItem(item)
         if index >= 0:
             self.takeTopLevelItem(index)
