@@ -1,6 +1,3 @@
-# ============================================
-# MEDIAS - EDITOR
-# ============================================
 
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 import config

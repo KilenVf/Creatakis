@@ -1,23 +1,19 @@
-# ============================================
-# CONFIG
-# ============================================
+
 
 CODEC = ".mp4"
 DEFAULT_DURATION = 5
 FONT_SIZE = 100
 
-# SAVE_MANAGER
+
 data = None
 json_text = None
 nom_chemin = None
 
-# MAIN_WINDOW
+
 
 media= {}
 video=None
-# Chemin du media actuellement importé (string) pour la lecture principale
 file_path= None
-# Bibliothèque de médias (drag & drop toolbox)
 media_library_paths = {}
 text=None
 save_file_path = None
@@ -28,11 +24,9 @@ current_path = None
 clips = {}
 total_frames = None
 
-# TIMELINE
 bloc_media = []
 index = -1
 
-#focus des boutons une fois cliqué
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtCore import Qt
 

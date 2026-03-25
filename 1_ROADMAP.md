@@ -4,7 +4,6 @@ Objectif: rendre l'application **fiable, utilisable en démo, et crédible en pr
 
 > Ce plan est orienté exécution: quoi faire, dans quel ordre, et quand considérer que c'est terminé.
 
-## 0) Vision “version prête”
 
 Une version prête avant le 20 doit permettre:
 1. d'importer des médias sans bug,
@@ -14,9 +13,7 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 1) Priorités critiques (P0) — à livrer en premier
 
-## 1.1 Dialogues fichiers 100% Qt (fin du mix tkinter/PyQt)
 **Problème actuel**: `utils.py` utilise `tkinter` dans une app PyQt → risques de focus, fenêtres bloquées, UX incohérente.
 
 **À implémenter précisément**:
@@ -34,7 +31,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 1.2 Timeline éditable (sélection, suppression, déplacement)
 **Problème actuel**: `remove_selected_clip()` vide, pas de workflow édition minimal.
 
 **À implémenter précisément**:
@@ -53,7 +49,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 1.3 Sauvegarde/chargement de projet robuste (sans `eval`)
 **Problème actuel**: sérialisation en `str`, rechargement fragile, `eval` dangereux.
 
 **À implémenter précisément**:
@@ -85,7 +80,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 1.4 Texte piloté par la timeline (et non global)
 **Problème actuel**: `text_to_display` est global et non indexé par le temps.
 
 **À implémenter précisément**:
@@ -103,9 +97,7 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 2) Effets à ajouter (priorisés)
 
-## 2.1 Effets vidéo essentiels (P1)
 - **Luminosité / Contraste / Saturation** (sliders).
 - **Température couleur** (chaud/froid).
 - **Netteté légère**.
@@ -118,7 +110,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 2.2 Transitions (P1)
 - **Fondu en entrée / sortie** (audio + vidéo).
 - **Crossfade** entre deux clips.
 - **Cut** (transition instantanée) par défaut.
@@ -129,7 +120,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 2.3 Effets texte (P1)
 - Ombre portée.
 - Contour (stroke).
 - Fond semi-transparent.
@@ -137,7 +127,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 2.4 Audio (P1-P2)
 - Gain clip audio (+/- dB).
 - Fade in/out audio.
 - Mute piste.
@@ -145,7 +134,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 2.5 Fonctionnalités “pro” à forte valeur (P2)
 - **Vitesse clip** (0.5x, 1x, 1.5x, 2x).
 - **Reverse clip**.
 - **Freeze frame**.
@@ -154,27 +142,22 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 3) Fonctionnalités de montage à ajouter
 
-## 3.1 Outils timeline indispensables
 - Split au playhead (`Ctrl+K`).
 - Ripple delete (optionnel mais puissant).
 - Snap magnétique (playhead, bords de clips).
 - Zoom timeline + mini-map.
 
-## 3.2 Gestion pistes
 - Ajouter/supprimer piste (video/text/audio).
 - Lock piste.
 - Mute/Solo piste audio.
 - Renommer piste.
 
-## 3.3 Bibliothèque médias
 - Colonnes utiles: nom, type, durée, résolution, fps, taille.
 - Vignettes vidéos.
 - Recherche/filtre (texte + type).
 - Détection doublons d'import.
 
-## 3.4 Export
 - Presets: YouTube 1080p30, TikTok 1080x1920, Proxy 720p.
 - Choix bitrate (faible/moyen/élevé).
 - Barre de progression + ETA.
@@ -182,7 +165,6 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 4) UX / ergonomie (gains rapides)
 
 - Désactiver les actions non disponibles (Play sans vidéo, Export sans timeline).
 - Barre d'état contextuelle (frame, timecode, zoom, sélection).
@@ -197,9 +179,7 @@ Une version prête avant le 20 doit permettre:
 
 ---
 
-## 5) Architecture et qualité (pour éviter de casser l'app)
 
-## 5.1 Refactor structurel minimum
 - Créer un `ProjectState` (dataclass) unique.
 - Arrêter les variables globales mutables dispersées.
 - Séparer modules:
@@ -208,7 +188,6 @@ Une version prête avant le 20 doit permettre:
   - `io/` (save/load/import/export)
   - `render/` (preview + export)
 
-## 5.2 Undo/Redo
 - Pattern Command:
   - `AddClipCommand`
   - `RemoveClipCommand`
@@ -216,7 +195,6 @@ Une version prête avant le 20 doit permettre:
   - `TrimClipCommand`
   - `UpdateTextStyleCommand`
 
-## 5.3 Tests minimaux à écrire
 - tests modèle timeline (durées, overlap, move, trim)
 - tests save/load (round-trip JSON)
 - tests activation texte selon frame
@@ -226,35 +204,28 @@ Objectif: **>= 15 tests** automatisés avant le 20.
 
 ---
 
-## 6) Plan d'exécution concret (jusqu'au 20)
 
-## Jours 1-2 (socle)
 - Dialogues `QFileDialog` + persistance chemins.
 - Nouveau format projet JSON v1 + validateur + migration minimale.
 
-## Jours 3-4 (montage de base)
 - Sélection/suppression clips.
 - Déplacement horizontal + snap.
 - Texte lié timeline (multi-clips).
 
-## Jours 5-6 (édition)
 - Trim début/fin.
 - Propriétés clip (texte + style).
 - Raccourcis clavier critiques.
 
-## Jours 7-8 (effets + robustesse)
 - Effets vidéo essentiels (lum/contraste/sat + B&W).
 - Fade in/out vidéo/audio.
 - Undo/Redo des commandes cœur.
 
-## Jours 9-10 (export + polish)
 - Presets export + progress.
 - Logs + messages d'erreur propres.
 - Campagne de test + correction bugs bloquants.
 
 ---
 
-## 7) Backlog “tickets prêts à coder” (ordre recommandé)
 
 1. `IO-01` Remplacer tkinter par QFileDialog.
 2. `PRJ-01` Définir schéma projet JSON v1.
@@ -272,7 +243,6 @@ Objectif: **>= 15 tests** automatisés avant le 20.
 
 ---
 
-## 8) Définition de “app complète au maximum” (checklist finale)
 
 - [ ] Import média stable (video/audio/image).
 - [ ] Timeline éditable (add/move/trim/delete/split).

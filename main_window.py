@@ -1,12 +1,14 @@
-# ============================================
-# UIS - MAIN WINDOW (avec OpenCV)
-# ============================================
 
 from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
                              QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
                              QGridLayout, QProgressDialog, QApplication)
-from PyQt5.QtCore import Qt, QTimer, QEvent
+from PyQt5.QtCore import Qt, QTimer, QEvent, QUrl
 from PyQt5.QtGui import QIcon, QImage, QPixmap
+try:
+    from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+except Exception:
+    QMediaPlayer = None
+    QMediaContent = None
 import cv2
 import numpy as np
 
@@ -111,6 +113,7 @@ class MainWindow(QMainWindow):
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(50)
         self.volume_slider.setMaximumWidth(100)
+        self.volume_slider.valueChanged.connect(self.on_volume_changed)
 
         self.timeline = Timeline(self)
         self.timeline.positionChanged.connect(self.seek_video)
@@ -170,6 +173,70 @@ class MainWindow(QMainWindow):
         self.current_media_index = -1
         self.current_media_in = None
         self.current_media_out = None
+        self.audio_player = None
+        self.audio_current_path = None
+        self.audio_sync_threshold_ms = 120
+        self._init_audio()
+
+    def _init_audio(self):
+        if not QMediaPlayer or not QMediaContent:
+            print("Audio indisponible (QtMultimedia manquant).")
+            return
+        self.audio_player = QMediaPlayer(self)
+        self.audio_player.setVolume(self.volume_slider.value())
+
+    def on_volume_changed(self, value):
+        if self.audio_player:
+            self.audio_player.setVolume(int(value))
+
+    def _set_audio_media(self, path):
+        if not self.audio_player or not path:
+            return False
+        if self.audio_current_path != path:
+            self.audio_player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
+            self.audio_current_path = path
+        return True
+
+    def _audio_position_ms(self, frame, fps):
+        if not fps or fps <= 0:
+            fps = 30
+        return int((frame / fps) * 1000)
+
+    def _sync_audio_to_frame(self, frame_number, force=False):
+        if not self.audio_player or not self.media_playlist:
+            return
+        index, local_frame = self._find_media_for_frame(frame_number)
+        if index is None:
+            return
+        clip_info = self.media_playlist[index]
+        path = clip_info.get("path")
+        in_frame = int(clip_info.get("in_frame") or 0)
+        fps = clip_info.get("fps") or self.fps or 30
+        if not self._set_audio_media(path):
+            return
+        target_ms = self._audio_position_ms(in_frame + local_frame, fps)
+        current_ms = self.audio_player.position()
+        if force or abs(current_ms - target_ms) > self.audio_sync_threshold_ms:
+            self.audio_player.setPosition(target_ms)
+        if self.is_playing:
+            if self.audio_player.state() != QMediaPlayer.PlayingState:
+                self.audio_player.play()
+        else:
+            if self.audio_player.state() == QMediaPlayer.PlayingState:
+                self.audio_player.pause()
+
+    def _stop_audio(self):
+        if self.audio_player:
+            self.audio_player.stop()
+
+    def _reset_audio(self):
+        if self.audio_player:
+            self.audio_player.stop()
+            try:
+                self.audio_player.setMedia(QMediaContent())
+            except Exception:
+                pass
+        self.audio_current_path = None
 
     def _sync_playlist_from_timeline(self):
         if not self.timeline.tracks:
@@ -197,6 +264,7 @@ class MainWindow(QMainWindow):
         current_frame = self.timeline.playhead.current_frame
         self.is_playing = False
         self.timer.stop()
+        self._reset_audio()
         self._sync_playlist_from_timeline()
         self.cap = None
         self.current_media_index = -1
@@ -427,6 +495,8 @@ class MainWindow(QMainWindow):
         self.video_label.setPixmap(pixmap)
 
         self.timeline.set_current_frame(current_frame)
+        if self.is_playing:
+            self._sync_audio_to_frame(current_frame)
 
     def play(self):
         if self.cap is None:
@@ -439,11 +509,14 @@ class MainWindow(QMainWindow):
                 return
         self.is_playing = True
         self.timer.start(self.frame_interval)
+        self._sync_audio_to_frame(self.timeline.playhead.current_frame, force=True)
         print("Lecture en cours...")
 
     def pause(self):
         self.is_playing = False
         self.timer.stop()
+        if self.audio_player:
+            self.audio_player.pause()
         print("Pause...")
 
     def stop(self):
@@ -457,6 +530,8 @@ class MainWindow(QMainWindow):
         elif self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.timeline.set_current_frame(0)
+        self._sync_audio_to_frame(0, force=True)
+        self._stop_audio()
         print("Arret...")
 
     def seek_video(self, frame_number):
@@ -464,6 +539,7 @@ class MainWindow(QMainWindow):
             if self.cap:
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
                 self.display_frame(force=True)
+            self._sync_audio_to_frame(frame_number, force=True)
             return
 
         index, local_frame = self._find_media_for_frame(frame_number)
@@ -476,6 +552,7 @@ class MainWindow(QMainWindow):
             in_frame = self.current_media_in or 0
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, in_frame + local_frame)
             self.display_frame(force=True)
+        self._sync_audio_to_frame(frame_number, force=True)
 
     def add_text_dialog(self):
         if self.cap is None:
@@ -979,6 +1056,11 @@ class MainWindow(QMainWindow):
         try:
             if self.cap:
                 self.cap.release()
+        except Exception:
+            pass
+        try:
+            if self.audio_player:
+                self.audio_player.stop()
         except Exception:
             pass
         self.cap = None
