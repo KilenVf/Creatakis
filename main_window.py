@@ -26,6 +26,7 @@ import json
 import os
 import glob
 from pathlib import Path
+import time
 
 VIDEO_EXTENSIONS = {
     ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpeg",
@@ -165,6 +166,7 @@ class MainWindow(QMainWindow):
         self.export_font_path = None
 
         self.timer = QTimer()
+        self.timer.setTimerType(Qt.PreciseTimer)
         self.timer.timeout.connect(self.display_frame)
 
         self.media_playlist = []
@@ -175,6 +177,8 @@ class MainWindow(QMainWindow):
         self.audio_player = None
         self.audio_current_path = None
         self.audio_sync_threshold_ms = 120
+        self.derniere_sync_audio = 0.0
+        self.interval_sync_audio = 0.3
         self._init_audio()
 
     def _est_video(self, path):
@@ -191,6 +195,29 @@ class MainWindow(QMainWindow):
             return
         self.audio_player = QMediaPlayer(self)
         self.audio_player.setVolume(self.volume_slider.value())
+        self.audio_player.stateChanged.connect(self._audio_etat_change)
+        self.audio_player.mediaStatusChanged.connect(self._audio_statut_change)
+
+    def _peut_relancer_audio(self):
+        maintenant = time.monotonic()
+        if (maintenant - self.derniere_sync_audio) < 0.2:
+            return False
+        self.derniere_sync_audio = maintenant
+        return True
+
+    def _audio_etat_change(self, state):
+        if not self.is_playing:
+            return
+        if state in (QMediaPlayer.StoppedState, QMediaPlayer.PausedState):
+            if self._peut_relancer_audio():
+                self._sync_audio_to_frame(self.timeline.playhead.current_frame, force=True)
+
+    def _audio_statut_change(self, status):
+        if not self.is_playing:
+            return
+        if status in (QMediaPlayer.LoadedMedia, QMediaPlayer.EndOfMedia, QMediaPlayer.InvalidMedia):
+            if self._peut_relancer_audio():
+                self._sync_audio_to_frame(self.timeline.playhead.current_frame, force=True)
 
     def on_volume_changed(self, value):
         if self.audio_player:
@@ -443,7 +470,13 @@ class MainWindow(QMainWindow):
             video_track = self.timeline.tracks[0]
             if video_track.clips:
                 start_frame = max(c.end_frame for c in video_track.clips)
+        if not self._est_video(path):
+            self._popup_fichier_non_video()
+            return
         self._ajouter_media(path, start_frame=start_frame)
+        if hasattr(self.toolbox, "tree"):
+            if path not in config.media_library_paths.values():
+                self.toolbox.tree.ajouter_media(path)
 
     def importer_media(self):
         config.file_path, config.nom_fichier = import_video()
@@ -456,6 +489,17 @@ class MainWindow(QMainWindow):
                 self.toolbox.tree.ajouter_media(config.file_path)
             else:
                 print("Toolbox indisponible, impossible d'ajouter le media a la bibliotheque.")
+
+    def supprimer_media_timeline(self, path):
+        if not path or not self.timeline.tracks:
+            return
+        video_track = self.timeline.tracks[0]
+        a_supprimer = [c for c in video_track.clips if getattr(c, "file_path", None) == path]
+        if not a_supprimer:
+            return
+        for clip in a_supprimer:
+            video_track.supprimer_clip(clip)
+        self.timeline.clipsChanged.emit()
 
     def display_frame(self, force=False):
         global text
@@ -495,15 +539,14 @@ class MainWindow(QMainWindow):
         self._dessiner_textes(frame, current_frame)
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_rgba = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2RGBA)
-        h, w, ch = frame_rgba.shape
-        bytes_per_line = 4 * w
+        h, w, ch = frame_rgb.shape
+        bytes_per_line = ch * w
         qt_image = QImage(
-            frame_rgba.tobytes(),
+            frame_rgb.data,
             w,
             h,
             bytes_per_line,
-            QImage.Format_RGBA8888
+            QImage.Format_RGB888
         )
 
         pixmap = QPixmap.fromImage(qt_image)
@@ -511,7 +554,10 @@ class MainWindow(QMainWindow):
 
         self.timeline.regler_frame(current_frame)
         if self.is_playing:
-            self._sync_audio_to_frame(current_frame)
+            maintenant = time.monotonic()
+            if (maintenant - self.derniere_sync_audio) >= self.interval_sync_audio:
+                self.derniere_sync_audio = maintenant
+                self._sync_audio_to_frame(current_frame)
 
     def play(self):
         if self.cap is None:
@@ -525,6 +571,7 @@ class MainWindow(QMainWindow):
         self.is_playing = True
         self.timer.start(self.frame_interval)
         self._sync_audio_to_frame(self.timeline.playhead.current_frame, force=True)
+        self.derniere_sync_audio = time.monotonic()
         print("Lecture en cours...")
 
     def pause(self):
@@ -555,6 +602,7 @@ class MainWindow(QMainWindow):
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
                 self.display_frame(force=True)
             self._sync_audio_to_frame(frame_number, force=True)
+            self.derniere_sync_audio = time.monotonic()
             return
 
         index, local_frame = self._media_pour_frame(frame_number)
@@ -568,6 +616,7 @@ class MainWindow(QMainWindow):
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, in_frame + local_frame)
             self.display_frame(force=True)
         self._sync_audio_to_frame(frame_number, force=True)
+        self.derniere_sync_audio = time.monotonic()
 
     def add_text_dialog(self):
         if self.cap is None:

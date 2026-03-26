@@ -42,6 +42,11 @@ Ajouter des effets (fond vert, correction couleur, flou), superposer des vidéos
 
 ## Analyse critique :
 Le projet avance bien mais reste incomplet. Certaines parties sont longues et pas optimisées, et on observe encore des ralentissements au début de la lecture. L’architecture peut aussi être simplifiée.
+Le raccord son / vidéo est aussi très mal réglé mais pas terminé par manque de temps.
+Beaucoups de fonctions mérite d'être raccourci.
+Au lieu d'utilise un dictionnaire pour stocker et afficher les vidéos il faudrait peut etre utiliser un tableau pour pouvoir ensuite pouvoir superposer plusieurs vidéos.
+On a beaucoups de fonction qui servent de 'gardes-fou' pour essayer de minimiser les bugs de son / vidéo.
+
 
 ## Compétences personnelles développées : 
 Lecture et compréhension de documentation, logique mathématique appliquée à la programmation, patience, organisation et recherche de solutions.

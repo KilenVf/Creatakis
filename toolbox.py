@@ -201,6 +201,9 @@ class DropTree(QTreeWidget):
         if item is None:
             return
         id_media = item.data(0, Qt.UserRole)
+        path = item.data(0, Qt.UserRole + 1)
+        if self.controller and path:
+            self.controller.supprimer_media_timeline(path)
         if id_media is not None:
             config.media_library_paths.pop(str(id_media), None)
         index = self.indexOfTopLevelItem(item)
