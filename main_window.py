@@ -25,6 +25,8 @@ import sys
 import json
 import os
 import glob
+import hashlib
+import tempfile
 from pathlib import Path
 import time
 
@@ -176,6 +178,8 @@ class MainWindow(QMainWindow):
         self.current_media_out = None
         self.audio_player = None
         self.audio_current_path = None
+        self.audio_files = {}
+        self.audio_dir = os.path.join(tempfile.gettempdir(), "creatakis_audio")
         self.audio_sync_threshold_ms = 120
         self.derniere_sync_audio = 0.0
         self.interval_sync_audio = 0.3
@@ -193,10 +197,80 @@ class MainWindow(QMainWindow):
         if not QMediaPlayer or not QMediaContent:
             print("Audio indisponible (QtMultimedia manquant).")
             return
+        try:
+            os.makedirs(self.audio_dir, exist_ok=True)
+        except Exception:
+            pass
         self.audio_player = QMediaPlayer(self)
         self.audio_player.setVolume(self.volume_slider.value())
         self.audio_player.stateChanged.connect(self._audio_etat_change)
         self.audio_player.mediaStatusChanged.connect(self._audio_statut_change)
+
+    def prepareAudio(self, path):
+        if not path or not os.path.exists(path):
+            return None
+        if not sys.platform.startswith("win"):
+            return path
+        cached = self.audio_files.get(path)
+        if cached and os.path.exists(cached):
+            return cached
+
+        try:
+            from moviepy import VideoFileClip
+        except Exception as e:
+            print(f"Extraction audio indisponible: {e}")
+            return path
+
+        key = hashlib.md5(path.encode("utf-8", errors="ignore")).hexdigest()
+        out_path = os.path.join(self.audio_dir, f"{key}.wav")
+        if os.path.exists(out_path):
+            self.audio_files[path] = out_path
+            return out_path
+
+        clip = None
+        audio = None
+        try:
+            clip = VideoFileClip(path)
+            audio = clip.audio
+            if audio is None:
+                return path
+            audio.write_audiofile(
+                out_path,
+                codec="pcm_s16le",
+                fps=44100,
+                logger=None,
+            )
+            self.audio_files[path] = out_path
+            return out_path
+        except Exception as e:
+            print(f"Extraction audio echouee pour {path}: {e}")
+            return path
+        finally:
+            try:
+                if audio:
+                    audio.close()
+            except Exception:
+                pass
+            try:
+                if clip:
+                    clip.close()
+            except Exception:
+                pass
+
+    def audioPath(self, path):
+        audio_path = self.prepareAudio(path)
+        if audio_path and os.path.exists(audio_path):
+            return audio_path
+        return path
+
+    def clearAudio(self):
+        for path in list(self.audio_files.values()):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
+        self.audio_files = {}
 
     def _peut_relancer_audio(self):
         maintenant = time.monotonic()
@@ -226,9 +300,10 @@ class MainWindow(QMainWindow):
     def _set_audio_media(self, path):
         if not self.audio_player or not path:
             return False
-        if self.audio_current_path != path:
-            self.audio_player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
-            self.audio_current_path = path
+        media_path = self.audioPath(path)
+        if self.audio_current_path != media_path:
+            self.audio_player.setMedia(QMediaContent(QUrl.fromLocalFile(media_path)))
+            self.audio_current_path = media_path
         return True
 
     def _audio_position_ms(self, frame, fps):
@@ -1127,6 +1202,7 @@ class MainWindow(QMainWindow):
                 self.audio_player.stop()
         except Exception:
             pass
+        self.clearAudio()
         self.cap = None
 
     def showtoolbox(self):

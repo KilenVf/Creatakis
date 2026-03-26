@@ -46,6 +46,8 @@ Le raccord son / vidéo est aussi très mal réglé mais pas terminé par manque
 Beaucoups de fonctions mérite d'être raccourci.
 Au lieu d'utilise un dictionnaire pour stocker et afficher les vidéos il faudrait peut etre utiliser un tableau pour pouvoir ensuite pouvoir superposer plusieurs vidéos.
 On a beaucoups de fonction qui servent de 'gardes-fou' pour essayer de minimiser les bugs de son / vidéo.
+Sur la timeline, la barre diparait une fois qu'elle est arrivée au bout et ne continue pas sur le bloc média rendant difficile la navigation.
+
 
 
 ## Compétences personnelles développées : 
