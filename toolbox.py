@@ -16,6 +16,11 @@ import config
 
 path = None
 
+VIDEO_EXTENSIONS = {
+    ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpeg",
+    ".mpg", ".3gp", ".ts", ".mts", ".m2ts", ".vob", ".ogv", ".rm", ".rmvb",
+    ".divx", ".xvid",
+}
 
 class ToolboxDock(QDockWidget):
 
@@ -77,7 +82,7 @@ class ToolboxDock(QDockWidget):
                 
         self.controller = None
 
-    def set_controller(self, controller: object):
+    def definir_controleur(self, controller: object):
         self.controller = controller
         if hasattr(self, "tree"):
             self.tree.controller = controller
@@ -102,9 +107,9 @@ class DropTree(QTreeWidget):
         for url in event.mimeData().urls():
             path = url.toLocalFile()
 
-            self.ajouter_medias(path)
-
-            print(path)
+            id_media = self.ajouter_media(path)
+            if id_media is not None:
+                print(path)
         event.acceptProposedAction()
 
     def dragMoveEvent(self, event):
@@ -127,7 +132,11 @@ class DropTree(QTreeWidget):
         drag.exec_(Qt.CopyAction)
 
 
-    def ajouter_medias(self, path):
+    def ajouter_media(self, path):
+        ext = Path(path).suffix.lower() if path else ""
+        if ext not in VIDEO_EXTENSIONS:
+            QMessageBox.warning(self, "Fichier invalide", "Le fichier importé doit etre une vidéo !")
+            return None
 
         fichier = Path(path)
         taille = fichier.stat().st_size
@@ -151,7 +160,7 @@ class DropTree(QTreeWidget):
 
         return id_media
     
-    def index_selectionner(self, path):
+    def maj_selection(self, path):
         item = self.currentItem()
         if item is None:
             config.current_index = None
@@ -167,26 +176,26 @@ class DropTree(QTreeWidget):
         if item is None:
             return
         self.setCurrentItem(item)
-        self.index_selectionner(None)
+        self.maj_selection(None)
 
         menu = QMenu(self)
         ajouter_sequence = QAction('Ajouter à la séquence', self)
         supprimer = QAction('Supprimer', self)
-        ajouter_sequence.triggered.connect(self._ajouter_a_sequence)
-        supprimer.triggered.connect(self._supprimer_selection)
+        ajouter_sequence.triggered.connect(self._ajouter_sequence)
+        supprimer.triggered.connect(self._supprimer_media)
         menu.addAction(ajouter_sequence)
         menu.addAction(supprimer)
         menu.exec_(event.globalPos())
 
 
 
-    def _ajouter_a_sequence(self):
+    def _ajouter_sequence(self):
         #relier avec import global de main window
         print(f"Ajouter à la séquence: {config.current_index} -> {config.current_path}")
         if self.controller and config.current_path:
             self.controller.add_media_from_path(config.current_path)
 
-    def _supprimer_selection(self):
+    def _supprimer_media(self):
         # supprimer le media de la timeline + ne plus l'afficher
         item = self.currentItem()
         if item is None:

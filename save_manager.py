@@ -6,7 +6,7 @@ from config import CODEC, DEFAULT_DURATION, FONT_SIZE
 from utils import save_as_path, load_save
 from config import media, video, file_path, bloc_media, index, text, nom_chemin
 
-def save_(media=None, video=None, file_path=None, text=None, bloc_media=None, index=None, project_data=None):
+def sauver_projet(media=None, video=None, file_path=None, text=None, bloc_media=None, index=None, project_data=None):
     chemin, nom_chemin = save_as_path()
     if not chemin:
         print('destination non sélectionnée')
@@ -55,7 +55,7 @@ def load_project_data_from_path(path):
         data = json.load(f)
     return data
 
-def update_datas():
+def maj_donnees():
     data = load_save_data()
     if not data:
         return False

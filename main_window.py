@@ -1,7 +1,8 @@
 
 from PyQt5.QtWidgets import (QLineEdit, QWidget, QPushButton, QLabel, 
                              QVBoxLayout, QHBoxLayout, QMainWindow, QSlider,
-                             QGridLayout, QProgressDialog, QApplication)
+                             QGridLayout, QProgressDialog, QApplication,
+                             QMessageBox)
 from PyQt5.QtCore import Qt, QTimer, QEvent, QUrl
 from PyQt5.QtGui import QIcon, QImage, QPixmap
 try:
@@ -14,7 +15,7 @@ import numpy as np
 
 from utils import import_video, save_as_path
 from dialogs import txt_contentWindow, txt_videotitle
-from save_manager import save_, load_project_data, load_project_data_from_path
+from save_manager import sauver_projet, load_project_data, load_project_data_from_path
 from timeline import Timeline
 import config
 
@@ -25,6 +26,12 @@ import json
 import os
 import glob
 from pathlib import Path
+
+VIDEO_EXTENSIONS = {
+    ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpeg",
+    ".mpg", ".3gp", ".ts", ".mts", ".m2ts", ".vob", ".ogv", ".rm", ".rmvb",
+    ".divx", ".xvid",
+}
 
 
 
@@ -42,7 +49,7 @@ class MainWindow(QMainWindow):
         # TOOLBOX
         self.toolbox = ToolboxDock(self)
         self.addDockWidget(Qt.RightDockWidgetArea, self.toolbox)
-        self.toolbox.set_controller(self)
+        self.toolbox.definir_controleur(self)
 
         #enlever le focus des boutons
         config.focus_boutons(self)
@@ -57,17 +64,9 @@ class MainWindow(QMainWindow):
         fichier.addAction("Ouvrir", self.load)
         fichier.addAction("Enregistrer")
         fichier.addAction("Enregistrer sous", self.sauvegarder)
-        fichier.addAction("Importer media", self.add_media_toGlobal)
+        fichier.addAction("Importer media", self.importer_media)
         fichier.addAction("Exporter media", self.exporter_media)
         fichier.addAction("Quitter", self.quitter)
-
-        edition = menubar.addMenu("Edition")
-        edition.setStyleSheet("background-color: white; color: black;")
-        edition.addAction("Annuler")
-        edition.addAction("Retablir")
-        edition.addAction("Couper")
-        edition.addAction("Supprimer")
-        edition.addAction("Dupliquer")
 
         affichage = menubar.addMenu("Affichage")
         affichage.setStyleSheet("background-color: white; color: black;")
@@ -178,6 +177,14 @@ class MainWindow(QMainWindow):
         self.audio_sync_threshold_ms = 120
         self._init_audio()
 
+    def _est_video(self, path):
+        if not path:
+            return False
+        return Path(path).suffix.lower() in VIDEO_EXTENSIONS
+
+    def _popup_fichier_non_video(self):
+        QMessageBox.warning(self, "Fichier invalide", "Le fichier importé doit etre une vidéo !")
+
     def _init_audio(self):
         if not QMediaPlayer or not QMediaContent:
             print("Audio indisponible (QtMultimedia manquant).")
@@ -205,7 +212,7 @@ class MainWindow(QMainWindow):
     def _sync_audio_to_frame(self, frame_number, force=False):
         if not self.audio_player or not self.media_playlist:
             return
-        index, local_frame = self._find_media_for_frame(frame_number)
+        index, local_frame = self._media_pour_frame(frame_number)
         if index is None:
             return
         clip_info = self.media_playlist[index]
@@ -238,7 +245,7 @@ class MainWindow(QMainWindow):
                 pass
         self.audio_current_path = None
 
-    def _sync_playlist_from_timeline(self):
+    def _maj_playlist(self):
         if not self.timeline.tracks:
             return
         video_track = self.timeline.tracks[0]
@@ -258,21 +265,21 @@ class MainWindow(QMainWindow):
                 "in_frame": in_frame,
             }
             idx += 1
-        self._rebuild_media_playlist()
+        self._recalcule_playlist()
 
     def on_timeline_clips_changed(self):
         current_frame = self.timeline.playhead.current_frame
         self.is_playing = False
         self.timer.stop()
         self._reset_audio()
-        self._sync_playlist_from_timeline()
+        self._maj_playlist()
         self.cap = None
         self.current_media_index = -1
         if config.total_frames and config.total_frames > 0:
             current_frame = min(current_frame, config.total_frames - 1)
             self.seek_video(current_frame)
 
-    def _rebuild_media_playlist(self):
+    def _recalcule_playlist(self):
         self.media_playlist = list(config.clips.values())
         self.media_offsets = []
         total = 0
@@ -280,9 +287,9 @@ class MainWindow(QMainWindow):
             self.media_offsets.append(total)
             total += int(clip_info.get("frames") or 0)
         config.total_frames = total
-        self.timeline.set_total_frames(total)
+        self.timeline.regler_total_frames(total)
 
-    def _open_media_index(self, index):
+    def _ouvrir_media(self, index):
         if index < 0 or index >= len(self.media_playlist):
             return False
 
@@ -313,13 +320,13 @@ class MainWindow(QMainWindow):
 
         if self.timeline_fps is None:
             self.timeline_fps = self.fps
-            self.timeline.set_fps(self.timeline_fps)
+            self.timeline.regler_fps(self.timeline_fps)
         elif abs(self.timeline_fps - self.fps) > 0.01:
             print("Avertissement: FPS differents entre les clips (lecture supposee identique).")
 
         return True
 
-    def _find_media_for_frame(self, frame_number):
+    def _media_pour_frame(self, frame_number):
         if not self.media_playlist:
             return None, None
 
@@ -334,18 +341,22 @@ class MainWindow(QMainWindow):
         start = self.media_offsets[last]
         return last, max(0, frame_number - start)
 
-    def _add_media_path(self, path, start_frame=None):
+    def _ajouter_media(self, path, start_frame=None):
         if not path:
             return
+        if not self._est_video(path):
+            self._popup_fichier_non_video()
+            return
 
-        fps, frames = self._probe_media_info(path)
+        fps, frames = self._infos_video(path)
         if not fps or not frames:
+            self._popup_fichier_non_video()
             print(f"Impossible de lire les metadonnees video: {path}")
             return
 
         if self.timeline_fps is None:
             self.timeline_fps = fps if fps and fps > 0 else 30
-            self.timeline.set_fps(self.timeline_fps)
+            self.timeline.regler_fps(self.timeline_fps)
         elif fps and abs(self.timeline_fps - fps) > 0.01:
             print("Avertissement: FPS differents entre les clips (timeline supposee identique).")
 
@@ -367,26 +378,26 @@ class MainWindow(QMainWindow):
                 "in_frame": 0,
             }
 
-            self._rebuild_media_playlist()
+            self._recalcule_playlist()
             index = len(self.media_playlist) - 1
             start_frame = self.media_offsets[index]
 
-            self.timeline.add_video_clip(str(path), start_frame, frames)
-            self.timeline.set_current_frame(start_frame)
+            self.timeline.ajouter_clip_video(str(path), start_frame, frames)
+            self.timeline.regler_frame(start_frame)
 
             if self.cap is None:
-                self._open_media_index(0)
+                self._ouvrir_media(0)
                 if self.cap:
                     self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         else:
-            self.timeline.add_video_clip(str(path), start_frame, frames)
-            self.timeline.set_current_frame(start_frame)
+            self.timeline.ajouter_clip_video(str(path), start_frame, frames)
+            self.timeline.regler_frame(start_frame)
             self.on_timeline_clips_changed()
 
         print(f"Video imported: {path}")
         print(f"FPS: {self.fps}, Total frames: {config.total_frames}")
 
-    def _probe_media_info(self, path):
+    def _infos_video(self, path):
         cap_probe = cv2.VideoCapture(path)
         if not cap_probe or not cap_probe.isOpened():
             return None, None
@@ -422,7 +433,7 @@ class MainWindow(QMainWindow):
         return None, None
 
     def add_media_from_path(self, path):
-        self._add_media_path(path)
+        self._ajouter_media(path)
 
     def on_media_dropped(self, path):
         self.is_playing = False
@@ -432,13 +443,17 @@ class MainWindow(QMainWindow):
             video_track = self.timeline.tracks[0]
             if video_track.clips:
                 start_frame = max(c.end_frame for c in video_track.clips)
-        self._add_media_path(path, start_frame=start_frame)
+        self._ajouter_media(path, start_frame=start_frame)
 
-    def add_media_toGlobal(self):
+    def importer_media(self):
         config.file_path, config.nom_fichier = import_video()
         if config.file_path:
+            if not self._est_video(config.file_path):
+                self._popup_fichier_non_video()
+                config.file_path = None
+                return
             if hasattr(self.toolbox, "tree"):
-                self.toolbox.tree.ajouter_medias(config.file_path)
+                self.toolbox.tree.ajouter_media(config.file_path)
             else:
                 print("Toolbox indisponible, impossible d'ajouter le media a la bibliotheque.")
 
@@ -450,7 +465,7 @@ class MainWindow(QMainWindow):
         if self.current_media_out is not None:
             pos = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
             if pos >= self.current_media_out:
-                if self._open_media_index(self.current_media_index + 1):
+                if self._ouvrir_media(self.current_media_index + 1):
                     self.timer.start(self.frame_interval)
                 else:
                     self.stop()
@@ -458,7 +473,7 @@ class MainWindow(QMainWindow):
 
         ret, frame = self.cap.read()
         if not ret:
-            if self._open_media_index(self.current_media_index + 1):
+            if self._ouvrir_media(self.current_media_index + 1):
                 self.timer.start(self.frame_interval)
                 ret, frame = self.cap.read()
                 if not ret:
@@ -477,7 +492,7 @@ class MainWindow(QMainWindow):
             current_frame = current_frame - self.current_media_in
         if 0 <= self.current_media_index < len(self.media_offsets):
             current_frame += self.media_offsets[self.current_media_index]
-        self._render_text_clips(frame, current_frame)
+        self._dessiner_textes(frame, current_frame)
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_rgba = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2RGBA)
@@ -494,14 +509,14 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap.fromImage(qt_image)
         self.video_label.setPixmap(pixmap)
 
-        self.timeline.set_current_frame(current_frame)
+        self.timeline.regler_frame(current_frame)
         if self.is_playing:
             self._sync_audio_to_frame(current_frame)
 
     def play(self):
         if self.cap is None:
             if self.media_playlist:
-                if not self._open_media_index(0):
+                if not self._ouvrir_media(0):
                     print("Veuillez importer une video d'abord")
                     return
             else:
@@ -523,13 +538,13 @@ class MainWindow(QMainWindow):
         self.is_playing = False
         self.timer.stop()
         if self.media_playlist:
-            self._open_media_index(0)
+            self._ouvrir_media(0)
             if self.cap:
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            self.timeline.set_current_frame(0)
+            self.timeline.regler_frame(0)
         elif self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            self.timeline.set_current_frame(0)
+            self.timeline.regler_frame(0)
         self._sync_audio_to_frame(0, force=True)
         self._stop_audio()
         print("Arret...")
@@ -542,11 +557,11 @@ class MainWindow(QMainWindow):
             self._sync_audio_to_frame(frame_number, force=True)
             return
 
-        index, local_frame = self._find_media_for_frame(frame_number)
+        index, local_frame = self._media_pour_frame(frame_number)
         if index is None:
             return
         if index != self.current_media_index:
-            if not self._open_media_index(index):
+            if not self._ouvrir_media(index):
                 return
         if self.cap:
             in_frame = self.current_media_in or 0
@@ -570,7 +585,7 @@ class MainWindow(QMainWindow):
             fps = self.timeline_fps or self.fps or 30
             text_duration = int(5 * fps)
 
-            clip = self.timeline.add_text_clip(
+            clip = self.timeline.ajouter_clip_texte(
                 text_content=dialog.text_value,
                 start_frame=current_frame,
                 duration_frames=text_duration,
@@ -596,7 +611,7 @@ class MainWindow(QMainWindow):
 
     def remove_text(self):
         if self.selected_text_clip and self.timeline.tracks:
-            self.timeline.tracks[1].remove_clip(self.selected_text_clip)
+            self.timeline.tracks[1].supprimer_clip(self.selected_text_clip)
             self.selected_text_clip = None
             self.display_frame(force=True)
             print("Texte supprime")
@@ -605,9 +620,9 @@ class MainWindow(QMainWindow):
 
     def on_cut_tool_toggled(self, checked):
         if hasattr(self, "timeline"):
-            self.timeline.set_tool("cut" if checked else "select")
+            self.timeline.choisir_outil("cut" if checked else "select")
 
-    def askMediaOutput(self):
+    def demander_nom_export(self):
         dialog = txt_videotitle()
         if dialog.exec_():
             return dialog.text_value
@@ -623,7 +638,7 @@ class MainWindow(QMainWindow):
             print("No video loaded. Please import a video first.")
             return
         if export_name is None:
-            export_name = self.askMediaOutput()
+            export_name = self.demander_nom_export()
         if export_name:
             from moviepy import VideoFileClip, CompositeVideoClip, ColorClip, ImageClip
             from proglog import ProgressBarLogger
@@ -728,7 +743,7 @@ class MainWindow(QMainWindow):
                         preview_size = (self.video_label.width(), self.video_label.height())
                         if preview_size[0] <= 0 or preview_size[1] <= 0:
                             preview_size = getattr(clip, "preview_size", base_size)
-                        overlay = self._build_text_overlay_rgba(clip, base_size, preview_size)
+                        overlay = self._creer_overlay_texte(clip, base_size, preview_size)
                         text_clip = ImageClip(overlay)
                         if hasattr(text_clip, "set_start"):
                             text_clip = text_clip.set_start(start_t)
@@ -797,7 +812,7 @@ class MainWindow(QMainWindow):
 
         return ImageFont.load_default()
 
-    def _build_text_overlay_rgba(self, clip, base_size, preview_size=None):
+    def _creer_overlay_texte(self, clip, base_size, preview_size=None):
         width, height = base_size
         if preview_size is None:
             preview_size = base_size
@@ -853,26 +868,26 @@ class MainWindow(QMainWindow):
         return overlay
 
     def sauvegarder(self):
-        project_data = self._build_project_data()
-        save_(project_data=project_data)
+        project_data = self._creer_donnees_projet()
+        sauver_projet(project_data=project_data)
         return
 
     def load(self):
         data = load_project_data()
         if not data:
             return
-        self._apply_project_data(data)
+        self._charger_projet(data)
         return
 
     def load_from_path(self, path):
         data = load_project_data_from_path(path)
         if not data:
             return
-        self._apply_project_data(data)
+        self._charger_projet(data)
         return
 
-    def _apply_project_data(self, data):
-        self.timeline.clear_all_clips()
+    def _charger_projet(self, data):
+        self.timeline.vider_tous_les_clips()
         config.clips = {}
         self.media_playlist = []
         self.media_offsets = []
@@ -889,16 +904,16 @@ class MainWindow(QMainWindow):
         config.media_library_paths = {}
         for path in paths:
             if hasattr(self.toolbox, "tree"):
-                self.toolbox.tree.ajouter_medias(path)
+                self.toolbox.tree.ajouter_media(path)
 
         # timeline
         timeline_data = data.get("timeline", {})
         fps = timeline_data.get("fps", 30)
         self.timeline_fps = fps
-        self.timeline.set_fps(fps)
+        self.timeline.regler_fps(fps)
         zoom = timeline_data.get("zoom")
         if zoom:
-            self.timeline.set_zoom(zoom)
+            self.timeline.regler_zoom(zoom)
 
         for v in timeline_data.get("video_clips", []):
             path = v.get("path")
@@ -906,7 +921,7 @@ class MainWindow(QMainWindow):
             end = int(v.get("end_frame", start))
             duration = max(1, end - start)
             if path:
-                clip = self.timeline.add_video_clip(path, start, duration)
+                clip = self.timeline.ajouter_clip_video(path, start, duration)
                 if clip:
                     clip.source_in = int(v.get("source_in", 0))
 
@@ -920,7 +935,7 @@ class MainWindow(QMainWindow):
             position = t.get("position", [0.5, 0.5])
             align = t.get("align", "center")
             if content:
-                self.timeline.add_text_clip(
+                self.timeline.ajouter_clip_texte(
                     text_content=content,
                     start_frame=start,
                     duration_frames=duration,
@@ -930,15 +945,15 @@ class MainWindow(QMainWindow):
                     align=align,
                 )
 
-        self._sync_playlist_from_timeline()
+        self._maj_playlist()
         current_frame = int(timeline_data.get("current_frame", 0))
         if config.total_frames and config.total_frames > 0:
             current_frame = min(current_frame, config.total_frames - 1)
             self.seek_video(current_frame)
         else:
-            self.timeline.set_current_frame(current_frame)
+            self.timeline.regler_frame(current_frame)
 
-    def _build_project_data(self):
+    def _creer_donnees_projet(self):
         video_clips = []
         text_clips = []
         if self.timeline.tracks:
@@ -982,7 +997,7 @@ class MainWindow(QMainWindow):
             }
         }
 
-    def _render_text_clips(self, frame, current_frame):
+    def _dessiner_textes(self, frame, current_frame):
         if not self.timeline.tracks or len(self.timeline.tracks) < 2:
             return
         text_track = self.timeline.tracks[1]
@@ -1013,7 +1028,7 @@ class MainWindow(QMainWindow):
 
                 cv2.putText(frame, clip.text_content, (x, y), self.text_font, font_scale, color, self.text_thickness)
 
-    def _update_selected_text_position(self, pos):
+    def _maj_position_texte(self, pos):
         if not self.selected_text_clip:
             return
         w = self.video_label.width()
@@ -1029,10 +1044,10 @@ class MainWindow(QMainWindow):
         if obj == self.video_label and getattr(self, "selected_text_clip", None):
             if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
                 self.dragging_text = True
-                self._update_selected_text_position(event.pos())
+                self._maj_position_texte(event.pos())
                 return True
             if event.type() == QEvent.MouseMove and getattr(self, "dragging_text", False) and (event.buttons() & Qt.LeftButton):
-                self._update_selected_text_position(event.pos())
+                self._maj_position_texte(event.pos())
                 return True
             if event.type() == QEvent.MouseButtonRelease and getattr(self, "dragging_text", False):
                 self.dragging_text = False

@@ -1,4 +1,0 @@
-Licence du projet
-
-Le code du projet est placé sous licence libre GPL v3+.
-Le texte du projet est placé sous licence Creative Commons CC BY-SA.

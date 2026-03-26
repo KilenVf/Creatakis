@@ -62,19 +62,19 @@ class ClipItem(QWidget):
             label = self.clip.text_content[:10] + "..."
         painter.drawText(self.rect(), Qt.AlignCenter, label)
 
-    def _is_cut_tool_active(self):
-        timeline = self.parent()._get_timeline()
+    def _outil_coupe_actif(self):
+        timeline = self.parent()._trouver_timeline()
         return bool(timeline and getattr(timeline, "current_tool", "select") == "cut")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            if self._is_cut_tool_active():
-                timeline = self.parent()._get_timeline()
+            if self._outil_coupe_actif():
+                timeline = self.parent()._trouver_timeline()
                 if timeline:
                     local_x = max(0, min(event.x(), self.width()))
                     pixels_per_frame = max(0.1, float(self.parent().pixels_per_frame))
                     cut_frame = self.clip.start_frame + int(local_x / pixels_per_frame)
-                    timeline.split_clip_at_frame(self.clip, cut_frame)
+                    timeline.couper_clip(self.clip, cut_frame)
                 self.is_resizing = False
                 self.was_moved = False
                 self.drag_start_x = 0
@@ -89,7 +89,7 @@ class ClipItem(QWidget):
             self.clicked.emit(self)
 
     def mouseMoveEvent(self, event):
-        if self._is_cut_tool_active():
+        if self._outil_coupe_actif():
             return
         if event.buttons() == Qt.LeftButton:
             if self.is_resizing:
@@ -98,7 +98,7 @@ class ClipItem(QWidget):
                 if new_end <= self.clip.start_frame:
                     new_end = self.clip.start_frame + 1
                 self.clip.end_frame = new_end
-                self.parent()._update_clips()
+                self.parent()._maj_clips()
             else:
                 delta_x = event.x() - self.drag_start_x
                 if delta_x != 0:
@@ -109,14 +109,14 @@ class ClipItem(QWidget):
                 duration = self.clip.duration
                 self.clip.start_frame = new_start
                 self.clip.end_frame = new_start + duration
-                self.parent()._update_clips()
+                self.parent()._maj_clips()
 
     def mouseReleaseEvent(self, event):
-        if self._is_cut_tool_active():
+        if self._outil_coupe_actif():
             return
         if event.button() == Qt.LeftButton:
             if self.is_resizing or self.was_moved:
-                timeline = self.parent()._get_timeline()
+                timeline = self.parent()._trouver_timeline()
                 if timeline:
                     timeline.clipsChanged.emit()
             self.is_resizing = False
@@ -125,29 +125,29 @@ class ClipItem(QWidget):
     def contextMenuEvent(self, event):
         menu = QMenu(self)
         delete_action = QAction("Supprimer", self)
-        delete_action.triggered.connect(self._delete_clip)
+        delete_action.triggered.connect(self._supprimer_clip)
         menu.addAction(delete_action)
         duplicate_action = QAction("Dupliquer", self)
-        duplicate_action.triggered.connect(self._duplicate_clip)
+        duplicate_action.triggered.connect(self._dupliquer_clip)
         menu.addAction(duplicate_action)
         if self.clip.clip_type == "text":
             shorten_action = QAction("Raccourcir 1s", self)
-            shorten_action.triggered.connect(self._shorten_text)
+            shorten_action.triggered.connect(self._raccourcir_texte)
             menu.addAction(shorten_action)
             lengthen_action = QAction("Allonger 1s", self)
-            lengthen_action.triggered.connect(self._lengthen_text)
+            lengthen_action.triggered.connect(self._allonger_texte)
             menu.addAction(lengthen_action)
         menu.exec_(event.globalPos())
 
-    def _delete_clip(self):
+    def _supprimer_clip(self):
         track = self.parent()
         if track:
-            track.remove_clip(self.clip)
-            timeline = track._get_timeline()
+            track.supprimer_clip(self.clip)
+            timeline = track._trouver_timeline()
             if timeline:
                 timeline.clipsChanged.emit()
 
-    def _duplicate_clip(self):
+    def _dupliquer_clip(self):
         track = self.parent()
         if track:
             new_clip = Clip(
@@ -169,31 +169,31 @@ class ClipItem(QWidget):
                 new_clip.stroke = self.clip.stroke
             if hasattr(self.clip, "source_in"):
                 new_clip.source_in = self.clip.source_in
-            track.add_clip(new_clip)
-            timeline = track._get_timeline()
+            track.ajouter_clip(new_clip)
+            timeline = track._trouver_timeline()
             if timeline:
                 timeline.clipsChanged.emit()
 
-    def _shorten_text(self):
-        self._adjust_text_duration(delta_seconds=-1)
+    def _raccourcir_texte(self):
+        self._ajuster_duree_texte(delta_seconds=-1)
 
-    def _lengthen_text(self):
-        self._adjust_text_duration(delta_seconds=1)
+    def _allonger_texte(self):
+        self._ajuster_duree_texte(delta_seconds=1)
 
-    def _adjust_text_duration(self, delta_seconds):
+    def _ajuster_duree_texte(self, delta_seconds):
         if self.clip.clip_type != "text":
             return
         track = self.parent()
         if not track:
             return
-        timeline = track._get_timeline()
+        timeline = track._trouver_timeline()
         fps = timeline.fps if timeline and timeline.fps else 30
         delta_frames = int(max(1, round(delta_seconds * fps)))
         new_end = self.clip.end_frame + delta_frames
         if new_end <= self.clip.start_frame:
             new_end = self.clip.start_frame + 1
         self.clip.end_frame = new_end
-        track._update_clips()
+        track._maj_clips()
 
 class TrackWidget(QWidget):
     clipSelected = pyqtSignal(object)
@@ -210,37 +210,37 @@ class TrackWidget(QWidget):
         self.setStyleSheet(f"background-color: rgb{track_color.getRgb()[:3]};")
         self.setAcceptDrops(True)
 
-    def _cursor_for_tool(self, tool):
+    def _curseur_outil(self, tool):
         return Qt.SplitVCursor if tool == "cut" else Qt.PointingHandCursor
 
-    def _apply_tool_cursor(self, item):
-        timeline = self._get_timeline()
+    def _appliquer_curseur(self, item):
+        timeline = self._trouver_timeline()
         tool = getattr(timeline, "current_tool", "select") if timeline else "select"
-        item.setCursor(self._cursor_for_tool(tool))
+        item.setCursor(self._curseur_outil(tool))
 
-    def add_clip(self, clip):
+    def ajouter_clip(self, clip):
         self.clips.append(clip)
         item = ClipItem(clip, self)
-        item.clicked.connect(self._on_clip_clicked)
+        item.clicked.connect(self._clip_clique)
         self.clip_items.append(item)
-        self._apply_tool_cursor(item)
-        self._update_clips()
+        self._appliquer_curseur(item)
+        self._maj_clips()
 
-    def insert_clip(self, index, clip):
+    def inserer_clip(self, index, clip):
         self.clips.insert(index, clip)
         item = ClipItem(clip, self)
-        item.clicked.connect(self._on_clip_clicked)
+        item.clicked.connect(self._clip_clique)
         self.clip_items.insert(index, item)
-        self._apply_tool_cursor(item)
-        self._update_clips()
+        self._appliquer_curseur(item)
+        self._maj_clips()
 
-    def set_tool_cursor(self, tool):
-        cursor = self._cursor_for_tool(tool)
+    def regler_curseur_outil(self, tool):
+        cursor = self._curseur_outil(tool)
         self.setCursor(cursor)
         for item in self.clip_items:
             item.setCursor(cursor)
 
-    def _on_clip_clicked(self, item):
+    def _clip_clique(self, item):
         for clip_item in self.clip_items:
             clip_item.is_selected = False
             clip_item.update()
@@ -249,32 +249,32 @@ class TrackWidget(QWidget):
         self.selected_clip = item.clip
         self.clipSelected.emit(item.clip)
 
-    def remove_clip(self, clip):
+    def supprimer_clip(self, clip):
         if clip in self.clips:
             i = self.clips.index(clip)
             self.clips.pop(i)
             item = self.clip_items.pop(i)
             item.deleteLater()
-            self._update_clips()
+            self._maj_clips()
     
-    def remove_selected_clip(self):
+    def supprimer_clip_selectionne(self):
         if self.selected_clip:
-            self.remove_clip(self.selected_clip)
+            self.supprimer_clip(self.selected_clip)
             self.selected_clip = None
     
-    def clear(self):
+    def vider(self):
         for item in self.clip_items:
             item.deleteLater()
         self.clips = []
         self.clip_items = []
         self.selected_clip = None
-        self._update_clips()
+        self._maj_clips()
 
-    def set_zoom(self, zoom):
+    def regler_zoom(self, zoom):
         self.pixels_per_frame = 2.0 * zoom
-        self._update_clips()
+        self._maj_clips()
 
-    def _update_clips(self):
+    def _maj_clips(self):
         max_width = 0
         for item in self.clip_items:
             x = int(item.clip.start_frame * self.pixels_per_frame)
@@ -289,11 +289,11 @@ class TrackWidget(QWidget):
         if max_width > 0:
             self.setMinimumWidth(max_width + 100)
         
-            timeline = self._get_timeline()
+            timeline = self._trouver_timeline()
             if timeline:
-                timeline._sync_widths(max_width + 100)
+                timeline._maj_largeurs(max_width + 100)
 
-    def _get_timeline(self):  
+    def _trouver_timeline(self):  
         parent = self.parent()
         while parent:
             if isinstance(parent, Timeline):
@@ -312,7 +312,7 @@ class TrackWidget(QWidget):
     def dropEvent(self, event):
         if self.track_name != "VIDEO" or not event.mimeData().hasUrls():
             return
-        timeline = self._get_timeline()
+        timeline = self._trouver_timeline()
         if not timeline:
             return
         for url in event.mimeData().urls():
@@ -339,12 +339,12 @@ class TimeRuler(QWidget):
         self.setMaximumHeight(30)
         self.setStyleSheet("background-color: rgb(40, 40, 40);")
 
-    def set_zoom(self, zoom):
+    def regler_zoom(self, zoom):
         self.zoom = zoom
         self.pixels_per_frame = 2.0 * zoom
         self.update()
 
-    def set_fps(self, fps):
+    def regler_fps(self, fps):
         self.fps = fps
         self.update()
 
@@ -375,21 +375,21 @@ class TimeRuler(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self._update_playhead_position(event.x())
+            self._maj_position_lecture(event.x())
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton:
-            self._update_playhead_position(event.x())
+            self._maj_position_lecture(event.x())
 
-    def _update_playhead_position(self, x):
+    def _maj_position_lecture(self, x):
         frame = max(0, int(x / self.pixels_per_frame))
 
-        timeline = self._get_timeline()
+        timeline = self._trouver_timeline()
         if timeline:
-            timeline.set_current_frame(frame)
+            timeline.regler_frame(frame)
             timeline.positionChanged.emit(frame)
 
-    def _get_timeline(self):
+    def _trouver_timeline(self):
         parent = self.parent()
         while parent:
             if isinstance(parent, Timeline):
@@ -408,11 +408,11 @@ class Playhead(QWidget):
         self.setStyleSheet("background: transparent;")
         self.setCursor(Qt.ArrowCursor)
 
-    def set_zoom(self, zoom):
+    def regler_zoom(self, zoom):
         self.pixels_per_frame = 2.0 * zoom
         self.update()
 
-    def set_current_frame(self, frame):
+    def regler_frame(self, frame):
         self.current_frame = frame
         self.update()
 
@@ -475,10 +475,10 @@ class Timeline(QWidget):
 
         self.setLayout(main_layout)
         self.setMinimumHeight(200)
-        self._create_default_tracks()
-        self.set_tool(self.current_tool)
+        self._creer_pistes()
+        self.choisir_outil(self.current_tool)
 
-    def _create_default_tracks(self):
+    def _creer_pistes(self):
         video_track = TrackWidget("VIDEO", QColor(50, 50, 70), self)
         video_track.clipSelected.connect(self.clipSelected.emit)
         self.tracks.append(video_track)
@@ -491,30 +491,30 @@ class Timeline(QWidget):
 
         print("Pistes crees : VIDEO + TEXT")
 
-    def set_tool(self, tool):
+    def choisir_outil(self, tool):
         self.current_tool = tool or "select"
         for track in self.tracks:
-            track.set_tool_cursor(self.current_tool)
+            track.regler_curseur_outil(self.current_tool)
 
-    def _copy_clip_style(self, source, target):
+    def _copier_style(self, source, target):
         for attr in ("font", "size", "text_color", "position", "align", "background_color", "stroke"):
             if hasattr(source, attr):
                 setattr(target, attr, getattr(source, attr))
         if hasattr(source, "preview_size"):
             target.preview_size = source.preview_size
 
-    def _find_track_for_clip(self, clip):
+    def _piste_du_clip(self, clip):
         for track in self.tracks:
             if clip in track.clips:
                 return track
         return None
 
-    def split_clip_at_frame(self, clip, frame):
+    def couper_clip(self, clip, frame):
         if not clip:
             return None
         if frame <= clip.start_frame or frame >= clip.end_frame:
             return None
-        track = self._find_track_for_clip(clip)
+        track = self._piste_du_clip(clip)
         if not track:
             return None
 
@@ -534,7 +534,7 @@ class Timeline(QWidget):
             text_content=clip.text_content,
             color=clip.color
         )
-        self._copy_clip_style(clip, new_clip)
+        self._copier_style(clip, new_clip)
         if hasattr(clip, "source_in"):
             base_in = getattr(clip, "source_in", 0)
             try:
@@ -543,60 +543,60 @@ class Timeline(QWidget):
                 pass
             new_clip.source_in = base_in + left_duration
 
-        track.insert_clip(track.clips.index(clip) + 1, new_clip)
+        track.inserer_clip(track.clips.index(clip) + 1, new_clip)
         self.clipsChanged.emit()
         return new_clip
 
-    def add_video_clip(self, file_path, start_frame, duration_frames):
+    def ajouter_clip_video(self, file_path, start_frame, duration_frames):
         clip = Clip("video", start_frame, start_frame + duration_frames, file_path=file_path, color=(100, 150, 255))
         clip.source_in = 0
-        self.tracks[0].add_clip(clip)
+        self.tracks[0].ajouter_clip(clip)
         print(f"Clip video ajoute : frames {start_frame} -> {start_frame + duration_frames}")
         return clip
 
-    def add_text_clip(self, text_content, start_frame, duration_frames, text_color=None, text_size=1.0, position=(0.5, 0.5), align="center"):
+    def ajouter_clip_texte(self, text_content, start_frame, duration_frames, text_color=None, text_size=1.0, position=(0.5, 0.5), align="center"):
         clip = Clip("text", start_frame, start_frame + duration_frames, text_content=text_content, color=(255, 150, 100))
         clip.text_color = text_color if text_color is not None else clip.text_color
         clip.size = text_size if text_size is not None else clip.size
         clip.position = position if position is not None else clip.position
         clip.align = align if align is not None else clip.align
-        self.tracks[1].add_clip(clip)
+        self.tracks[1].ajouter_clip(clip)
         print(f"Clip texte ajoute : '{text_content}' frames {start_frame} -> {start_frame + duration_frames}")
         return clip
 
-    def remove_selected_clip(self):
+    def supprimer_clip_selectionne(self):
         for track in self.tracks:
-            track.remove_selected_clip()
+            track.supprimer_clip_selectionne()
         print("Clip selectionne supprime")
 
-    def clear_all_clips(self):
+    def vider_tous_les_clips(self):
         for track in self.tracks:
-            track.clear()
-        self.set_current_frame(0)
-        self.set_total_frames(0)
+            track.vider()
+        self.regler_frame(0)
+        self.regler_total_frames(0)
 
-    def set_zoom(self, zoom):
+    def regler_zoom(self, zoom):
         self.zoom = max(0.1, min(zoom, 5.0))
-        self.time_ruler.set_zoom(self.zoom)
-        self.playhead.set_zoom(self.zoom)
+        self.time_ruler.regler_zoom(self.zoom)
+        self.playhead.regler_zoom(self.zoom)
         for track in self.tracks:
-            track.set_zoom(self.zoom)
+            track.regler_zoom(self.zoom)
         self.update()
 
-    def set_fps(self, fps):
+    def regler_fps(self, fps):
         self.fps = fps
-        self.time_ruler.set_fps(fps)
+        self.time_ruler.regler_fps(fps)
 
-    def set_total_frames(self, total):
+    def regler_total_frames(self, total):
         self.total_frames = total
         if total:
             width = int(total * self.time_ruler.pixels_per_frame) + 100
-            self._sync_widths(width)
+            self._maj_largeurs(width)
 
-    def set_current_frame(self, frame):
-        self.playhead.set_current_frame(frame)
+    def regler_frame(self, frame):
+        self.playhead.regler_frame(frame)
 
-    def _sync_widths(self, width):
+    def _maj_largeurs(self, width):
         min_width = width
         if self.total_frames:
             min_width = max(min_width, int(self.total_frames * self.time_ruler.pixels_per_frame) + 100)
@@ -621,13 +621,13 @@ class Timeline(QWidget):
         if event.modifiers() == Qt.ControlModifier:
             delta = event.angleDelta().y()
             factor = 1.1 if delta > 0 else 0.9
-            self.set_zoom(self.zoom * factor)
+            self.regler_zoom(self.zoom * factor)
             event.accept()
         else:
             super().wheelEvent(event)
     
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete:
-            self.remove_selected_clip()
+            self.supprimer_clip_selectionne()
         else:
             super().keyPressEvent(event)
